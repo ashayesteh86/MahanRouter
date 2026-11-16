@@ -1,0 +1,101 @@
+# Example: branch office with PPPoE WAN, backup DHCP WAN, LAN bridge,
+# guest VLAN, WireGuard to HQ, OSPF over the tunnel and port forwarding.
+# The WireGuard keys below are throwaway examples. Generate your own.
+version: 1
+system:
+  hostname: branch-dubai
+  timezone: Asia/Dubai
+
+interfaces:
+  - { name: ether1, type: ethernet, mac: "52:54:00:00:00:01", comment: "fibre ONT" }
+  - { name: ether2, type: ethernet, mac: "52:54:00:00:00:02", comment: "backup 4G modem", addressing: dhcp, dhcp_route_distance: 200, dhcp_use_dns: false }
+  - { name: ether3, type: ethernet, mac: "52:54:00:00:00:03" }
+  - { name: ether4, type: ethernet, mac: "52:54:00:00:00:04" }
+  - name: pppoe-out1
+    type: pppoe
+    parent: ether1
+    comment: "main ISP"
+    pppoe: { username: "user@isp", password: "secret", add_default_route: true }
+    shaping: { bandwidth: 95M }
+  - name: bridge-lan
+    type: bridge
+    members: [ether3, ether4]
+    addressing: static
+    addresses: [192.168.10.1/24]
+  - { name: vlan20, type: vlan, parent: bridge-lan, vlan_id: 20, comment: guests, addressing: static, addresses: [192.168.20.1/24] }
+  - name: wg-hq
+    type: wireguard
+    addressing: static
+    addresses: [10.255.0.2/30]
+    wireguard:
+      private_key: "aKCCvT85FuujKZg6w6EwcocDotvHIUgM1fU9TouVOmY="
+      listen_port: 51820
+      peers:
+        - comment: HQ
+          public_key: "6gvh0d6oUCJgwQPAZuEPmkvOP7lxxZyi60hoXxHJ3hg="
+          endpoint: "hq.example.com:51820"
+          allowed_ips: [10.255.0.0/30, 10.0.0.0/16]
+          persistent_keepalive: 25
+        - comment: admin laptop
+          public_key: "kAqbWpjrVeZdvu3REp3LVo7O2fpm6GeqH0lkkMTHcwQ="
+          allowed_ips: [10.255.1.10/32]
+          route_allowed_ips: true
+
+interface_lists:
+  WAN: [pppoe-out1, ether2]
+  LAN: [bridge-lan, vlan20, wg-hq]
+
+routes:
+  - { dst: 10.0.0.0/16, gateway: 10.255.0.1, comment: "HQ via tunnel" }
+  - { dst: 192.0.2.0/24, blackhole: true, comment: "documentation range" }
+
+routing:
+  router_id: 10.255.0.2
+  ospf:
+    areas: [{ id: "0", networks: [10.255.0.0/30, 192.168.10.0/24] }]
+    passive_interfaces: [bridge-lan]
+
+firewall:
+  address_lists:
+    admins: [192.168.10.50, 10.0.5.0/24]
+    blocked: [198.51.100.0/24]
+  filter:
+    - { chain: input, action: accept, connection_state: "established,related,untracked", comment: "accept established" }
+    - { chain: input, action: drop, connection_state: invalid, comment: "drop invalid" }
+    - { chain: input, action: drop, src_address_list: blocked, comment: "drop blocked" }
+    - { chain: input, action: drop, src_address_list: ssh-scanners, comment: "drop SSH scanners" }
+    - { chain: input, action: add-src-to-address-list, address_list: ssh-scanners, address_list_timeout: 1h, protocol: tcp, dst_port: "22", in_interface_list: WAN, connection_state: new, comment: "catch SSH scanners" }
+    - { chain: input, action: accept, protocol: icmp, comment: "accept ICMP" }
+    - { chain: input, action: accept, protocol: udp, dst_port: "51820", comment: "WireGuard" }
+    - { chain: input, action: accept, in_interface: lo }
+    - { chain: input, action: accept, src_address_list: admins, protocol: tcp, dst_port: "22,443", comment: "admin access" }
+    - { chain: input, action: drop, in_interface_list: "!LAN", log: true, comment: "drop not from LAN" }
+    - { chain: forward, action: accept, connection_state: "established,related,untracked" }
+    - { chain: forward, action: drop, connection_state: invalid }
+    - { chain: forward, action: drop, in_interface: vlan20, out_interface: bridge-lan, comment: "guests cannot reach LAN" }
+    - { chain: forward, action: drop, connection_state: new, connection_nat_state: "!dstnat", in_interface_list: WAN, comment: "drop WAN not DSTNATed" }
+  nat:
+    - { chain: srcnat, action: masquerade, out_interface_list: WAN }
+    - { chain: dstnat, action: dst-nat, in_interface_list: WAN, protocol: tcp, dst_port: "8443", to_address: 192.168.10.20, to_port: "443", comment: "NAS web" }
+
+dhcp_servers:
+  - interface: bridge-lan
+    pools: [192.168.10.100-192.168.10.200]
+    lease_time: 12h
+    domain: branch.lan
+    static_leases:
+      - { mac: "aa:bb:cc:00:11:22", address: 192.168.10.20, hostname: nas }
+  - interface: vlan20
+    pools: [192.168.20.10-192.168.20.250]
+    lease_time: 2h
+    dns_servers: [1.1.1.1]
+
+dns:
+  enabled: true
+  forwarders: [1.1.1.1, 9.9.9.9]
+  listen_on: [bridge-lan]
+  static_hosts: { router.branch.lan: 192.168.10.1, nas.branch.lan: 192.168.10.20 }
+
+ntp:
+  servers: [pool.ntp.org]
+  serve_to: [192.168.10.0/24]

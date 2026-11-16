@@ -1,0 +1,35 @@
+# Lab topology (network namespaces, see run.sh):
+#   mr-up (10.99.0.1, 10.99.0.3) --- wan0 [mr-rt] lan0 --- mr-cl (192.168.77.10)
+version: 1
+system: { hostname: lab-router }
+interfaces:
+  - { name: wan0, type: ethernet, match_device: wan0, addressing: static, addresses: [10.99.0.2/24] }
+  - { name: lan0, type: ethernet, match_device: lan0, addressing: static, addresses: [192.168.77.1/24] }
+interface_lists:
+  WAN: [wan0]
+  LAN: [lan0]
+routes:
+  - { dst: 0.0.0.0/0, gateway: 10.99.0.1 }
+firewall:
+  address_lists:
+    blocked: [10.99.0.3]
+  filter:
+    - { chain: input, action: accept, connection_state: "established,related,untracked" }
+    - { chain: input, action: drop, connection_state: invalid }
+    - { chain: input, action: add-src-to-address-list, address_list: scanners, address_list_timeout: 1h, in_interface_list: WAN, protocol: tcp, dst_port: "22", comment: "catch SSH scanners" }
+    - { chain: input, action: accept, protocol: icmp }
+    - { chain: input, action: accept, in_interface: lo }
+    - { chain: input, action: drop, in_interface_list: "!LAN", comment: "drop not from LAN" }
+    - { chain: forward, action: accept, connection_state: "established,related,untracked" }
+    - { chain: forward, action: drop, connection_state: invalid }
+    - { chain: forward, action: drop, src_address_list: blocked, comment: "drop blocked" }
+    - { chain: forward, action: drop, connection_state: new, connection_nat_state: "!dstnat", in_interface_list: WAN, comment: "drop WAN not DSTNATed" }
+  nat:
+    - { chain: srcnat, action: masquerade, out_interface_list: WAN }
+    - { chain: dstnat, action: dst-nat, in_interface_list: WAN, protocol: tcp, dst_port: "8080", to_address: 192.168.77.10, to_port: "80", comment: "web to client" }
+dhcp_servers:
+  - { interface: lan0, pools: [192.168.77.100-192.168.77.150] }
+dns:
+  enabled: true
+  forwarders: [1.1.1.1]
+  listen_on: [lan0]

@@ -1,0 +1,43 @@
+# Status (2026-11-16)
+
+## Built and tested
+
+| Area | What | Tested how |
+|---|---|---|
+| Config model | Strict YAML schema v1; full validation that reports every problem at once | unit tests |
+| Interfaces | ethernet (rename by MAC), VLAN, bridge (STP), bond (802.3ad etc.), dummy loopback, PPPoE client (pppd), WireGuard (networkd), MTU, disable | render tests; networkd files **not yet loaded by a real networkd** |
+| Addressing | static, DHCP client (route metric, use DNS) | render tests |
+| Routing | static routes (gateway/interface/blackhole/metric); OSPFv2 and BGP via FRR | `frr.conf` accepted by FRR 9.1 `vtysh -C`; no live adjacency test |
+| Firewall | input/forward/output with policy, address lists (v4+v6, static+dynamic with timeout), interface lists, conn state, NAT state, ports, log, counters | `nft -c` + live traffic in the netns lab |
+| NAT | masquerade, src-nat, dst-nat (port forward), redirect | netns lab |
+| QoS | CAKE egress shaping per interface | render test only |
+| DHCP server | Kea, pools, static leases, gateway/DNS/domain options | `kea-dhcp4 -t` |
+| DNS | Unbound forwarder/cache, static hosts, access control | `unbound-checkconf` |
+| NTP | chrony sources + serve to subnets | render only |
+| Commit model | Git history, candidate/diff, commit-confirm with auto-rollback (also across restarts), manual rollback, restore on failed apply | unit tests + netns lab |
+| API/CLI | REST over Unix socket / TCP+token, `mrctl` | netns lab |
+| Builds | static binaries for amd64/arm64/arm/mips/mipsle (~8 MB each) | built, not run on ARM/MIPS |
+
+## Not built yet (phase 1 remainder)
+
+- OS image (mkosi, Debian 12, A/B partitions, read-only root): the next step.
+- Real-device test on a VM (qcow2) with real systemd-networkd, Kea, Unbound, FRR.
+- Web panel (React + TypeScript).
+- MikroTik-style interactive CLI (`/ip firewall filter add ...`) on top of the API.
+- IPsec (strongSwan), OpenVPN, L2TP.
+- Per-IP "simple queues" (tc HTB/CAKE trees).
+- DHCPv6 / IPv6 RA on LAN; IPv6 BGP has been rendered but never tested.
+- Bridge VLAN filtering (trunk/access ports on one bridge).
+- Users, RBAC, RADIUS/LDAP, MFA. Today the API has one token plus the root-only socket.
+- Secrets are stored in plain text in the config repo (`/var/lib/mahan-router`, mode 0700).
+  The API `render` preview masks them, but `show running` does not.
+- Monitoring: Prometheus exporter, SNMP, NetFlow.
+- RouterOS `export` → YAML converter.
+
+## Known limits
+
+- The binaries are ~8 MB, too large for 16 MB-flash OpenWrt devices. The light
+  edition will need a slimmer agent or a UCI translator, as noted in the review
+  of the architecture doc.
+- Changing a `.link` (port rename) takes effect on the next boot or udev add
+  event, not live.

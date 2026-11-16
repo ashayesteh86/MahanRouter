@@ -1,0 +1,20 @@
+[Unit]
+Description=Mahan Router core-agent
+Documentation=https://github.com/ashayesteh86/MahanRouter
+# Apply the firewall before any interface comes up.
+Before=network-pre.target systemd-networkd.service
+Wants=network-pre.target
+After=local-fs.target
+
+[Service]
+Type=simple
+ExecStart=/usr/sbin/mahan-agent --state /var/lib/mahan-router --socket /run/mahan-router/agent.sock
+Restart=always
+RestartSec=2
+RuntimeDirectory=mahan-router
+RuntimeDirectoryMode=0750
+StateDirectory=mahan-router
+StateDirectoryMode=0700
+
+[Install]
+WantedBy=multi-user.target

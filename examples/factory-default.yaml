@@ -1,0 +1,89 @@
+version: 1
+system:
+  hostname: mahan-router
+interfaces:
+  - name: ether1
+    type: ethernet
+    comment: WAN
+    mac: 52:54:00:aa:00:00
+    addressing: dhcp
+  - name: ether2
+    type: ethernet
+    mac: 52:54:00:aa:00:01
+  - name: ether3
+    type: ethernet
+    mac: 52:54:00:aa:00:02
+  - name: bridge-lan
+    type: bridge
+    comment: LAN
+    members:
+      - ether2
+      - ether3
+    addressing: static
+    addresses:
+      - 192.168.88.1/24
+interface_lists:
+  LAN:
+    - bridge-lan
+  WAN:
+    - ether1
+firewall:
+  filter:
+    - chain: input
+      action: accept
+      comment: accept established,related,untracked
+      connection_state: established,related,untracked
+    - chain: input
+      action: drop
+      comment: drop invalid
+      connection_state: invalid
+    - chain: input
+      action: accept
+      comment: accept ICMP
+      protocol: icmp
+    - chain: input
+      action: accept
+      comment: accept ICMPv6
+      protocol: icmpv6
+    - chain: input
+      action: accept
+      comment: accept loopback
+      in_interface: lo
+    - chain: input
+      action: drop
+      comment: drop all not coming from LAN
+      in_interface_list: '!LAN'
+    - chain: forward
+      action: accept
+      comment: accept established,related,untracked
+      connection_state: established,related,untracked
+    - chain: forward
+      action: drop
+      comment: drop invalid
+      connection_state: invalid
+    - chain: forward
+      action: drop
+      comment: drop all from WAN not DSTNATed
+      in_interface_list: WAN
+      connection_state: new
+      connection_nat_state: '!dstnat'
+  nat:
+    - chain: srcnat
+      action: masquerade
+      comment: masquerade
+      out_interface_list: WAN
+dhcp_servers:
+  - interface: bridge-lan
+    pools:
+      - 192.168.88.10-192.168.88.254
+    lease_time: 12h
+dns:
+  enabled: true
+  forwarders:
+    - 1.1.1.1
+    - 8.8.8.8
+  listen_on:
+    - bridge-lan
+ntp:
+  servers:
+    - pool.ntp.org
