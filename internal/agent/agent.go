@@ -113,6 +113,9 @@ func (a *Agent) Boot(factory func() *config.Config) error {
 	if res != nil {
 		a.Log.Info("boot apply", "changed", len(res.Changed), "components", res.Components)
 	}
+	if r := a.Applier.BootLinks(c); len(r) > 0 {
+		a.Log.Info("renamed ports", "renames", r)
+	}
 	return err
 }
 

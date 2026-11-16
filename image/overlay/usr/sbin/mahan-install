@@ -1,0 +1,133 @@
+#!/bin/bash
+# Installs Mahan Router from the live ISO onto a disk.
+#
+#   mahan-install                 interactive: pick a disk, confirm, install
+#   mahan-install --yes /dev/sda  no questions (scripts)
+#   mahan-install --from-cmdline  used by the boot menu (mahan.install) and
+#                                 by tests (mahan.autoinstall=/dev/sda)
+#
+# Layout (GPT, boots on BIOS and UEFI):
+#   1  1 MiB    BIOS boot
+#   2  512 MiB  EFI system (FAT32)
+#   3  rest     root (ext4, label mahan-root)
+# Any configuration made in the live session is copied to the disk.
+set -euo pipefail
+
+SRC=/run/live/rootfs/filesystem.squashfs
+TARGET=/mnt/mahan-target
+YES=0
+DISK=""
+REBOOT=0
+
+die() { echo "error: $*" >&2; exit 1; }
+
+case "${1:-}" in
+  --yes) YES=1; DISK=${2:-} ;;
+  --from-cmdline)
+    for arg in $(cat /proc/cmdline); do
+      case "$arg" in
+        mahan.autoinstall=*) DISK=${arg#*=}; YES=1; REBOOT=1
+          exec > >(tee /dev/console /var/log/mahan-install.log) 2>&1 ;;  # unattended: progress on the console too
+      esac
+    done ;;
+  "") ;;
+  -h|--help) sed -n '2,13p' "$0"; exit 0 ;;
+  *) DISK=$1 ;;
+esac
+
+[ "$(id -u)" = 0 ] || die "run as root"
+[ -d "$SRC/usr" ] || die "live root not found at $SRC (run this from the Mahan Router ISO)"
+
+# The disk the ISO itself is on must never be offered.
+LIVE_DEV=$(findmnt -n -o SOURCE /run/live/medium 2>/dev/null | sed 's/[0-9]*$//;s/p$//' || true)
+
+list_disks() {
+  lsblk -dn -o NAME,SIZE,TYPE,MODEL | awk '$3=="disk"' | while read -r name size _ model; do
+    [ "/dev/$name" = "$LIVE_DEV" ] && continue
+    case $name in loop*|sr*|ram*|zram*) continue ;; esac
+    echo "/dev/$name $size $model"
+  done
+}
+
+if [ -z "$DISK" ]; then
+  echo
+  echo "  Mahan Router installer"
+  echo "  ======================"
+  echo
+  mapfile -t DISKS < <(list_disks)
+  [ ${#DISKS[@]} -gt 0 ] || die "no installable disk found"
+  for i in "${!DISKS[@]}"; do echo "  $((i+1))) ${DISKS[$i]}"; done
+  echo
+  read -rp "  Install to which disk? [1-${#DISKS[@]}] " n
+  [[ "$n" =~ ^[0-9]+$ ]] && [ "$n" -ge 1 ] && [ "$n" -le ${#DISKS[@]} ] || die "invalid choice"
+  DISK=$(echo "${DISKS[$((n-1))]}" | cut -d' ' -f1)
+fi
+[ -b "$DISK" ] || die "$DISK is not a block device"
+[ "$DISK" != "$LIVE_DEV" ] || die "$DISK holds the running ISO"
+
+if [ "$YES" != 1 ]; then
+  echo
+  echo "  ALL DATA ON $DISK WILL BE ERASED."
+  read -rp "  Type YES to continue: " ok
+  [ "$ok" = YES ] || die "cancelled"
+fi
+
+part() { case "$DISK" in *[0-9]) echo "${DISK}p$1" ;; *) echo "${DISK}$1" ;; esac; }
+
+echo ">> partitioning $DISK"
+trap 'echo "error: installation failed at line $LINENO" >&2' ERR
+umount -R "$TARGET" 2>/dev/null || true
+wipefs -aq "$DISK"
+parted -s "$DISK" mklabel gpt \
+  mkpart bios 1MiB 2MiB set 1 bios_grub on \
+  mkpart esp fat32 2MiB 514MiB set 2 esp on \
+  mkpart root ext4 514MiB 100%
+partprobe "$DISK" 2>/dev/null || true
+udevadm settle
+for _ in $(seq 20); do [ -b "$(part 3)" ] && break; sleep 0.5; done
+
+echo ">> creating filesystems"
+mkfs.vfat -F32 -n MAHAN-EFI "$(part 2)" >/dev/null
+mkfs.ext4 -q -F -L mahan-root "$(part 3)"
+
+echo ">> copying system (takes a minute)"
+mkdir -p "$TARGET"
+mount "$(part 3)" "$TARGET"
+cp -a "$SRC/." "$TARGET/"
+mkdir -p "$TARGET/boot/efi"
+mount "$(part 2)" "$TARGET/boot/efi"
+
+# Keep what was configured in the live session.
+if [ -d /var/lib/mahan-router/repo ]; then
+  echo ">> keeping the configuration made in the live session"
+  rm -rf "$TARGET/var/lib/mahan-router"
+  cp -a /var/lib/mahan-router "$TARGET/var/lib/"
+fi
+[ -f /etc/shadow ] && cp -a /etc/shadow "$TARGET/etc/shadow"   # keeps a changed root password
+grep -qw mahan.selftest /proc/cmdline && touch "$TARGET/etc/mahan-router/selftest-on-boot"
+
+cat > "$TARGET/etc/fstab" <<EOF
+UUID=$(blkid -s UUID -o value "$(part 3)") / ext4 errors=remount-ro 0 1
+UUID=$(blkid -s UUID -o value "$(part 2)") /boot/efi vfat umask=0077 0 1
+EOF
+: > "$TARGET/etc/machine-id"
+
+echo ">> installing boot loader (BIOS + UEFI)"
+for d in dev proc sys run; do mount --rbind "/$d" "$TARGET/$d"; mount --make-rslave "$TARGET/$d"; done
+chroot "$TARGET" /bin/bash -euc "
+  export DEBIAN_FRONTEND=noninteractive
+  apt-get -y -qq purge live-boot live-boot-initramfs-tools >/dev/null 2>&1 || true
+  update-initramfs -u -k all >/dev/null 2>&1
+  grub-install --target=i386-pc '$DISK' >/dev/null 2>&1
+  grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=mahan --removable --no-nvram >/dev/null 2>&1
+  update-grub >/dev/null 2>&1
+"
+sync
+umount -lR "$TARGET"
+
+echo
+echo "  Mahan Router is installed on $DISK."
+echo "  Remove the ISO and reboot."
+if [ "$REBOOT" = 1 ]; then
+  sync; sleep 2; systemctl reboot
+fi

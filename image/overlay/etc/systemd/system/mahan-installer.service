@@ -1,0 +1,21 @@
+[Unit]
+Description=Mahan Router installer
+After=mahan-agent.service systemd-user-sessions.service
+# The installer owns tty1; a getty there would hang it up.
+Conflicts=getty@tty1.service
+Before=getty@tty1.service
+ConditionKernelCommandLine=|mahan.install
+ConditionKernelCommandLine=|mahan.autoinstall
+
+[Service]
+Type=oneshot
+ExecStart=/usr/sbin/mahan-install --from-cmdline
+StandardInput=tty-force
+StandardOutput=tty
+StandardError=tty
+TTYPath=/dev/tty1
+TTYReset=yes
+TTYVHangup=yes
+
+[Install]
+WantedBy=multi-user.target

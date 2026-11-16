@@ -158,9 +158,9 @@ func (a *Applier) Apply(c *config.Config, b render.Bundle) (*Result, error) {
 		if err := writeAtomic(a.full(p), []byte(f.Content), os.FileMode(f.Mode)); err != nil {
 			return res, fmt.Errorf("write %s: %w", p, err)
 		}
-		if strings.HasPrefix(p, render.SecretsDir) {
-			// WireGuard key files: root:systemd-network 0640, as networkd requires.
-			if g, err := user.LookupGroup("systemd-network"); err == nil {
+		if f.Group != "" {
+			// e.g. WireGuard keys root:systemd-network, frr.conf root:frr.
+			if g, err := user.LookupGroup(f.Group); err == nil {
 				gid, _ := strconv.Atoi(g.Gid)
 				_ = os.Chown(a.full(p), 0, gid)
 			}
@@ -256,6 +256,7 @@ func (a *Applier) reload(c *config.Config, comp string, netdevs []string) error 
 			_ = a.run("ip", "link", "delete", name)
 		}
 		_ = a.run("udevadm", "control", "--reload")
+		a.EnsureLinkNames(c)
 		return a.run("networkctl", "reload")
 	case render.CompFirewall:
 		return a.run("nft", "-f", a.full(render.NftablesFile))

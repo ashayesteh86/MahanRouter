@@ -16,12 +16,13 @@
 | NTP | chrony sources + serve to subnets | render only |
 | Commit model | Git history, candidate/diff, commit-confirm with auto-rollback (also across restarts), manual rollback, restore on failed apply | unit tests + netns lab |
 | API/CLI | REST over Unix socket / TCP+token, `mrctl` | netns lab |
+| ISO | Debian 12 live + installer, BIOS + UEFI, open-vm-tools | QEMU (TCG): live boot, port rename to ether1/ether2 on e1000 + vmxnet3, WAN DHCP, Kea lease to a LAN client, NAT to the internet, Unbound; auto-install to disk, then boot from disk on BIOS and UEFI |
 | Builds | static binaries for amd64/arm64/arm/mips/mipsle (~8 MB each) | built, not run on ARM/MIPS |
 
 ## Not built yet (phase 1 remainder)
 
-- OS image (mkosi, Debian 12, A/B partitions, read-only root): the next step.
-- Real-device test on a VM (qcow2) with real systemd-networkd, Kea, Unbound, FRR.
+- A/B partitions, read-only root and signed updates. The ISO installs a normal ext4 root.
+- A test on real VMware or hardware. The ISO has only been tested in QEMU without KVM.
 - Web panel (React + TypeScript).
 - MikroTik-style interactive CLI (`/ip firewall filter add ...`) on top of the API.
 - IPsec (strongSwan), OpenVPN, L2TP.

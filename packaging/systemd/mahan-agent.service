@@ -1,10 +1,10 @@
 [Unit]
 Description=Mahan Router core-agent
 Documentation=https://github.com/ashayesteh86/MahanRouter
-# Apply the firewall before any interface comes up.
-Before=network-pre.target systemd-networkd.service
-Wants=network-pre.target
-After=local-fs.target
+# nftables.service loads the last committed ruleset before the network
+# comes up; the agent then renames ports and reconciles everything else.
+After=systemd-networkd.service nftables.service
+Wants=systemd-networkd.service
 
 [Service]
 Type=simple

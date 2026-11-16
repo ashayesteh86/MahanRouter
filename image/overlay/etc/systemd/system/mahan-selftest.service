@@ -1,0 +1,12 @@
+[Unit]
+Description=Mahan Router boot self-test report
+After=mahan-agent.service
+ConditionKernelCommandLine=|mahan.selftest
+ConditionPathExists=|/etc/mahan-router/selftest-on-boot
+
+[Service]
+Type=oneshot
+ExecStart=/usr/sbin/mahan-selftest --boot
+
+[Install]
+WantedBy=multi-user.target

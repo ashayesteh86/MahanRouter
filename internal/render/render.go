@@ -32,6 +32,7 @@ var Order = []string{CompSystem, CompNetwork, CompFirewall, CompPPP, CompRouting
 type File struct {
 	Component string `json:"component"`
 	Mode      uint32 `json:"mode"`
+	Group     string `json:"group,omitempty"` // owning group, when the service does not run as root
 	Content   string `json:"content"`
 }
 
@@ -39,7 +40,14 @@ type File struct {
 type Bundle map[string]File
 
 func (b Bundle) add(path, comp string, mode uint32, content string) {
-	b[path] = File{Component: comp, Mode: mode, Content: content}
+	f := File{Component: comp, Mode: mode, Content: content}
+	switch {
+	case strings.HasPrefix(path, SecretsDir):
+		f.Group = "systemd-network"
+	case strings.HasPrefix(path, "/etc/frr/"):
+		f.Group = "frr"
+	}
+	b[path] = f
 }
 
 // Paths returns the bundle paths sorted.

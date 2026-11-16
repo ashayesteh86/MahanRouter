@@ -4,10 +4,11 @@ A Linux-based router OS meant to replace MikroTik RouterOS on standard x86 and
 ARM hardware. The full design is in [docs/ARCHITECTURE.fa.md](docs/ARCHITECTURE.fa.md)
 (Persian). [docs/STATUS.md](docs/STATUS.md) lists what is built and what is still missing.
 
-> **Status:** phase 1 foundation only. The core agent, the config model, the
-> renderers and the CLI work, and they pass an end-to-end lab test in network
-> namespaces. None of it has run on a real device yet. There is no OS image,
-> web panel, IPsec/OpenVPN or per-IP queues.
+> **Status:** phase 1 foundation. The core agent, the config model, the
+> renderers and the CLI pass an end-to-end lab test in network namespaces.
+> There is a bootable Debian 12 ISO (live + installer, BIOS + UEFI) that is
+> tested in QEMU, but not yet on real VMware or hardware. There is no web
+> panel, IPsec/OpenVPN or per-IP queues.
 
 ## How it works
 
@@ -59,6 +60,7 @@ ARM hardware. The full design is in [docs/ARCHITECTURE.fa.md](docs/ARCHITECTURE.
 | `examples/` | `factory-default.yaml`, `branch-office.yaml` |
 | `tests/lab/` | network-namespace end-to-end test |
 | `packaging/systemd/` | `mahan-agent.service`, `mahan-pppoe@.service` |
+| `image/` | ISO build (`build-iso.sh`), QEMU test (`test-vm.sh`), files baked into the image (`overlay/`) |
 
 ## Build and test
 
@@ -81,6 +83,21 @@ then checks:
 - rule counters
 - confirm timeout rollback
 - manual rollback
+
+## ISO image (VMware / bare metal)
+
+```bash
+sudo image/build-iso.sh     # dist/iso/mahan-router-<version>-amd64.iso (~335 MB)
+sudo image/test-vm.sh all   # QEMU: live boot, LAN client DHCP/DNS/NAT, auto-install, boot disk BIOS + UEFI
+```
+
+- The ISO is Debian 12 with the services listed below, `open-vm-tools` and
+  `qemu-guest-agent`. It boots a live system, or installs to disk with
+  `mahan-install`, which is also a boot menu entry.
+- Default login is `root` / `mahan`.
+- Out of the box, ether1 is the WAN (DHCP client) and the other ports are
+  bridge-lan at 192.168.88.1/24 with DHCP, DNS and NAT.
+- Installation steps for VMware are in [docs/VMWARE.fa.md](docs/VMWARE.fa.md).
 
 ## CLI
 
