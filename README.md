@@ -7,8 +7,8 @@ ARM hardware. The full design is in [docs/ARCHITECTURE.fa.md](docs/ARCHITECTURE.
 > **Status:** phase 1 foundation. The core agent, the config model, the
 > renderers and the CLI pass an end-to-end lab test in network namespaces.
 > There is a bootable Debian 12 ISO (live + installer, BIOS + UEFI) that is
-> tested in QEMU, but not yet on real VMware or hardware. There is no web
-> panel, IPsec/OpenVPN or per-IP queues.
+> installs and boots on VMware. A web panel (HTTPS, Persian/English) is built
+> into the agent. There is no IPsec/OpenVPN or per-IP queues yet.
 
 ## How it works
 
@@ -57,6 +57,8 @@ ARM hardware. The full design is in [docs/ARCHITECTURE.fa.md](docs/ARCHITECTURE.
 | `internal/store` | Git-backed running config + candidate |
 | `internal/agent` | commit / confirm / rollback logic |
 | `internal/api` | REST API |
+| `internal/panel` | web panel server: login, sessions, HTTPS, embedded app (`dist/`) |
+| `web/` | web panel source (React + TypeScript) |
 | `examples/` | `factory-default.yaml`, `branch-office.yaml` |
 | `tests/lab/` | network-namespace end-to-end test |
 | `packaging/systemd/` | `mahan-agent.service`, `mahan-pppoe@.service` |
@@ -98,6 +100,44 @@ sudo image/test-vm.sh all   # QEMU: live boot, LAN client DHCP/DNS/NAT, auto-ins
 - Out of the box, ether1 is the WAN (DHCP client) and the other ports are
   bridge-lan at 192.168.88.1/24 with DHCP, DNS and NAT.
 - Installation steps for VMware are in [docs/VMWARE.fa.md](docs/VMWARE.fa.md).
+
+## Web panel
+
+`mahan-agent --panel-listen :443 --panel-http :80` (the default on the ISO)
+serves the panel at `https://192.168.88.1` from the LAN side. The firewall
+factory default does not let the WAN reach it.
+
+- Sign in with `admin` / `mahan`. The panel asks you to change it. Panel users
+  are kept in `/etc/mahan-router/panel-users.json` (PBKDF2 hashes) and are
+  separate from Linux accounts.
+- The certificate is self-signed and is created on first start in
+  `/etc/mahan-router/panel.{crt,key}`. Replace the two files to use your own.
+- **How edits work:** every form edits the candidate, the same as `mrctl edit`.
+  Nothing changes on the device until you click Apply on the Changes page.
+  - Apply shows the diff first.
+  - By default it uses safe mode (commit-confirm, 120 s): if you lose access
+    and do not confirm, the router rolls back.
+- **Pages:**
+  - Dashboard: CPU, memory, traffic per port, services
+  - Interfaces: VLAN, bridge, bond, PPPoE, WireGuard, interface lists
+  - Firewall filter/NAT with counters and address lists
+  - DHCP: pools, reservations and current leases
+  - DNS
+  - Static routes, with the live routing table
+  - Tools: ping, traceroute and DNS lookup
+  - Changes: diff, apply, history, rollback and a raw YAML editor
+  - Settings: system, NTP and panel users
+- **Security:**
+  - The session cookie is HttpOnly and SameSite=Strict.
+  - State-changing requests also need an `X-Requested-With` header.
+  - After 5 failed logins from one IP, that IP is locked out (30 s, growing).
+  - The panel sends CSP headers.
+- **Source** is in `web/` (React + TypeScript + Tailwind with the shared
+  Mahan theme).
+  - `make web` builds it into `internal/panel/dist`, which is committed and
+    embedded with `go:embed`.
+  - For development, run `cd web && npm run dev` against an agent started with
+    `--panel-listen 127.0.0.1:8443`.
 
 ## CLI
 

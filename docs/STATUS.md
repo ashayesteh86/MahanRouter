@@ -17,13 +17,14 @@
 | Commit model | Git history, candidate/diff, commit-confirm with auto-rollback (also across restarts), manual rollback, restore on failed apply | unit tests + netns lab |
 | API/CLI | REST over Unix socket / TCP+token, `mrctl` | netns lab |
 | ISO | Debian 12 live + installer, BIOS + UEFI, open-vm-tools | QEMU (TCG): live boot, port rename to ether1/ether2 on e1000 + vmxnet3, WAN DHCP, Kea lease to a LAN client, NAT to the internet, Unbound; auto-install to disk, then boot from disk on BIOS and UEFI |
+| Web panel | HTTPS on the LAN with login, sessions and lockout; dashboard, interfaces, firewall/NAT, DHCP, DNS, static routes, tools, diff/apply (safe mode)/history/rollback, YAML editor, panel users; Persian + English | Go unit tests; headless Chromium against a local agent: login, add a dst-nat rule, apply with confirm, confirm, history |
 | Builds | static binaries for amd64/arm64/arm/mips/mipsle (~8 MB each) | built, not run on ARM/MIPS |
 
 ## Not built yet (phase 1 remainder)
 
 - A/B partitions, read-only root and signed updates. The ISO installs a normal ext4 root.
-- A test on real VMware or hardware. The ISO has only been tested in QEMU without KVM.
-- Web panel (React + TypeScript).
+- A test on real hardware. The ISO installs and boots on the user's VMware (BIOS); UEFI is tested in QEMU only.
+- Web panel: forms for OSPF/BGP, bond/bridge VLAN filtering and per-user roles (today every panel user has full access).
 - MikroTik-style interactive CLI (`/ip firewall filter add ...`) on top of the API.
 - IPsec (strongSwan), OpenVPN, L2TP.
 - Per-IP "simple queues" (tc HTB/CAKE trees).

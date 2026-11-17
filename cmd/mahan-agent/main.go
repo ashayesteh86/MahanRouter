@@ -4,6 +4,7 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"flag"
 	"log/slog"
@@ -20,6 +21,7 @@ import (
 	"github.com/ashayesteh86/MahanRouter/internal/api"
 	"github.com/ashayesteh86/MahanRouter/internal/apply"
 	"github.com/ashayesteh86/MahanRouter/internal/config"
+	"github.com/ashayesteh86/MahanRouter/internal/panel"
 	"github.com/ashayesteh86/MahanRouter/internal/store"
 )
 
@@ -32,6 +34,11 @@ func main() {
 	listen := flag.String("listen", "", "optional TCP address for the API, e.g. 127.0.0.1:8090")
 	tokenFile := flag.String("token-file", "/etc/mahan-router/api-token", "bearer token file for the TCP API")
 	noReload := flag.Bool("no-reload", false, "write files but do not reload services (lab mode)")
+	panelListen := flag.String("panel-listen", "", "HTTPS address for the web panel, e.g. :443 (empty = off)")
+	panelHTTP := flag.String("panel-http", "", "plain-HTTP address that redirects to the panel, e.g. :80")
+	panelUsers := flag.String("panel-users", "/etc/mahan-router/panel-users.json", "panel user file")
+	panelCert := flag.String("panel-cert", "/etc/mahan-router/panel.crt", "panel TLS certificate (self-signed one is created if missing)")
+	panelKey := flag.String("panel-key", "/etc/mahan-router/panel.key", "panel TLS key")
 	flag.Parse()
 
 	log := slog.New(slog.NewTextHandler(os.Stderr, nil))
@@ -60,7 +67,7 @@ func main() {
 		log.Error("boot apply failed", "err", err)
 	}
 
-	srv := &api.Server{Agent: ag}
+	srv := &api.Server{Agent: ag, Version: version}
 	var servers []*http.Server
 
 	_ = os.MkdirAll(filepath.Dir(*socket), 0o750)
@@ -91,6 +98,49 @@ func main() {
 		servers = append(servers, ts)
 		go serve(log, ts, tl)
 		log.Info("TCP API listening", "addr", *listen)
+	}
+
+	if *panelListen != "" {
+		users := &panel.Users{Path: *panelUsers}
+		if err := users.Load(); err != nil {
+			log.Error("panel users", "err", err)
+		} else {
+			host, _ := os.Hostname()
+			cert, err := panel.LoadOrCreateCert(*panelCert, *panelKey, host)
+			if err != nil {
+				log.Error("panel certificate", "err", err)
+			} else {
+				ps := &panel.Server{Users: users, API: srv.Routes(), Version: version}
+				hs := &http.Server{
+					Addr: *panelListen, Handler: ps.Handler(), ReadHeaderTimeout: 10 * time.Second,
+					TLSConfig: &tls.Config{Certificates: []tls.Certificate{cert}, MinVersion: tls.VersionTLS12},
+				}
+				servers = append(servers, hs)
+				go func() {
+					// The panel binds to all addresses; the router firewall decides who
+					// may reach it (the factory default allows the LAN only).
+					for {
+						err := hs.ListenAndServeTLS("", "")
+						if errors.Is(err, http.ErrServerClosed) {
+							return
+						}
+						log.Error("panel listener", "err", err)
+						time.Sleep(5 * time.Second)
+					}
+				}()
+				log.Info("web panel listening", "addr", *panelListen)
+				if *panelHTTP != "" {
+					_, port, _ := net.SplitHostPort(*panelListen)
+					rs := &http.Server{Addr: *panelHTTP, Handler: panel.RedirectHTTPS(port), ReadHeaderTimeout: 10 * time.Second}
+					servers = append(servers, rs)
+					go func() {
+						if err := rs.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+							log.Error("panel http redirect", "err", err)
+						}
+					}()
+				}
+			}
+		}
 	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)

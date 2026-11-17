@@ -1,0 +1,76 @@
+/* Mahan theme: base rules, components and animations. Needs tokens.css. No framework needed. */
+html, body { background: var(--bg); color: var(--ink); }
+html { scroll-padding-top: 4.5rem; } /* anchors and focused fields are not hidden under the sticky header */
+body { font-family: var(--font-sans); -webkit-font-smoothing: antialiased; }
+.ltr { direction: ltr; unicode-bidi: isolate; }
+.num { font-variant-numeric: tabular-nums; }
+
+/* every clickable control shows a hand cursor and a keyboard focus ring (Tailwind resets both) */
+button:not(:disabled), [role="button"], summary, select, label:has(> input[type="checkbox"]), input[type="checkbox"], input[type="radio"] { cursor: pointer; }
+:where(a, button, select, summary, [role="button"], [role="tab"], [tabindex]):focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: .5rem; }
+:where(input, textarea):focus-visible { outline: none; }
+
+@layer components {
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: .4rem; border-radius: .45rem; padding: .45rem .95rem;
+  font-size: .875rem; font-weight: 500; border: 1px solid var(--line); background: var(--surface); color: var(--ink); transition: background .15s, border-color .15s; white-space: nowrap; }
+.btn:hover { background: var(--surface-2); }
+.btn:disabled { opacity: .5; pointer-events: none; }
+.btn-primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); box-shadow: 0 2px 6px color-mix(in srgb, var(--accent) 30%, transparent); }
+.btn-primary:hover { background: var(--accent); filter: brightness(1.08); }
+.btn-danger { color: var(--st-talk); }
+.btn-sm { padding: .25rem .6rem; font-size: .8rem; border-radius: .4rem; }
+.input { width: 100%; border: 1px solid var(--line); background: var(--surface); color: var(--ink); border-radius: .45rem; padding: .45rem .7rem; font-size: .875rem; outline: none; }
+.input:disabled { opacity: .6; cursor: not-allowed; }
+.input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.label { display: block; font-size: .8rem; color: var(--ink-2); margin-bottom: .3rem; }
+.card { background: var(--surface); border: 1px solid var(--card-border); border-radius: .6rem; box-shadow: var(--shadow-card); }
+.card-title { font-size: .95rem; font-weight: 600; color: var(--ink); }
+.page-title { font-size: 1.25rem; font-weight: 700; line-height: 1.75rem; color: var(--ink); }
+/* round icon of a stat card: tinted disc inside a thin ring of the same hue (set --tone on the element) */
+.stat-icon { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; width: 3rem; height: 3rem; border-radius: 999px;
+  color: var(--tone); background: color-mix(in srgb, var(--tone) 12%, var(--surface)); border: 1.5px solid color-mix(in srgb, var(--tone) 45%, transparent);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--tone) 8%, transparent); }
+.seg { display: inline-flex; flex-wrap: wrap; gap: .25rem; }
+.seg > button { white-space: nowrap; border: 1px solid var(--line); border-radius: .4rem; padding: .25rem .65rem; font-size: .75rem; color: var(--ink-2); background: var(--surface); }
+.seg > button:hover { background: var(--surface-2); }
+.seg > button[aria-pressed="true"] { background: var(--accent-soft); border-color: transparent; color: var(--accent); font-weight: 600; }
+.icon-btn { display: inline-flex; align-items: center; justify-content: center; min-width: 2.25rem; min-height: 2.25rem; border-radius: .45rem; color: var(--ink-3); transition: background .15s, color .15s; }
+.icon-btn:hover { background: var(--surface-2); color: var(--ink); }
+.icon-btn-outline { border: 1px solid var(--line); background: var(--surface); }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+.chip { display: inline-flex; align-items: center; gap: .3rem; white-space: nowrap; border-radius: 999px; padding: .1rem .55rem; font-size: .72rem; font-weight: 500; }
+table.grid-table { width: 100%; border-collapse: collapse; font-size: .85rem; }
+table.grid-table th { text-align: start; font-weight: 500; color: var(--ink-3); font-size: .78rem; padding: .55rem .7rem; border-bottom: 1px solid var(--line); white-space: nowrap; background: var(--surface); position: sticky; top: 0; z-index: 1; }
+table.grid-table td { padding: .55rem .7rem; border-bottom: 1px solid var(--line); vertical-align: middle; }
+table.grid-table tr:hover td { background: var(--surface-2); }
+}
+
+@keyframes ring-pulse { 0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--st-ring) 45%, transparent); } 50% { box-shadow: 0 0 0 6px transparent; } }
+.ringing { animation: ring-pulse 1.2s ease-in-out infinite; }
+@keyframes shake { 0%,100% { transform: rotate(0); } 20% { transform: rotate(-12deg); } 40% { transform: rotate(10deg); } 60% { transform: rotate(-8deg); } 80% { transform: rotate(6deg); } }
+.shake { animation: shake 1s ease-in-out infinite; transform-origin: 50% 60%; }
+/* charts fill in when a page opens: plots grow up from the zero line, bars fill from their start, gauges sweep round.
+   Runs once per mounted element, so live updates that follow do not replay it. */
+@keyframes grow-up { from { transform: scaleY(0); } }
+.chart-grow { animation: grow-up 1.2s cubic-bezier(.33, 1, .68, 1) both; }
+@keyframes fill-x { from { transform: scaleX(0); } }
+.bar-fill { animation: fill-x 1.2s cubic-bezier(.33, 1, .68, 1) both; transform-origin: left; }
+.bar-fill:dir(rtl) { transform-origin: right; }
+@keyframes sweep { from { stroke-dasharray: 0 1000; } }
+.gauge-sweep { animation: sweep 1.3s cubic-bezier(.33, 1, .68, 1) both; }
+@keyframes assistant-in { from { opacity: 0; transform: translateY(8px) scale(.98); } to { opacity: 1; transform: none; } }
+.assistant-in { animation: assistant-in .18s ease-out; transform-origin: bottom; }
+/* touch screens: small buttons still get a finger-sized target */
+@media (pointer: coarse) { .btn { min-height: 2.75rem; } .btn-sm { min-height: 2.5rem; } .icon-btn { min-width: 2.75rem; min-height: 2.75rem; } }
+@media (prefers-reduced-motion: reduce) {
+  .ringing, .shake, .assistant-in, .chart-grow, .bar-fill, .gauge-sweep { animation: none; }
+  *, *::before, *::after { transition-duration: .01ms !important; scroll-behavior: auto !important; }
+}
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb { background: var(--surface-3); border-radius: 10px; border: 2px solid var(--bg); }
+
+/* login page backdrop: fixed navy / indigo in both themes (the side menu's colours) so the white clock reads well */
+.login-bg { background: radial-gradient(120% 90% at 85% 0%, #3b3f9e 0%, transparent 60%), linear-gradient(160deg, #13163a 0%, #1f2353 50%, #2a2f72 100%); }
+.login-dots { background-image: radial-gradient(rgba(255,255,255,.09) 1px, transparent 1px); background-size: 22px 22px;
+  mask-image: radial-gradient(ellipse at center, #000 30%, transparent 75%); -webkit-mask-image: radial-gradient(ellipse at center, #000 30%, transparent 75%); }

@@ -1,0 +1,95 @@
+/* Mahan theme: colours. Light is the default, dark is <html data-theme="dark">. No framework needed. */
+:root {
+  color-scheme: light;
+  --font-sans: "Vazirmatn", ui-sans-serif, system-ui, sans-serif;
+  --bg: #f0f1f7;
+  --surface: #ffffff;
+  --surface-2: #f5f6fa;
+  --surface-3: #e8e9f1;
+  --line: #e9eaf1;
+  --ink: #23252f;
+  --ink-2: #4e5162;
+  --ink-3: #868a9c;
+  --accent: #5c67f7;
+  --accent-ink: #ffffff;
+  --accent-soft: #ecedfe;
+  --card-border: transparent;
+  --shadow-card: 0 1px 2px rgb(30 35 83 / .04), 0 4px 14px rgb(30 35 83 / .04);
+  /* side menu: deep navy in the light theme */
+  --nav-bg: #1f2353;
+  --nav-ink: #b9bcd9;
+  --nav-label: #7a7ea8;
+  --nav-hover: rgb(255 255 255 / .06);
+  --nav-active: rgb(255 255 255 / .1);
+  --nav-line: rgb(255 255 255 / .08);
+  /* extra hues for icons of stat cards */
+  --tint-pink: #e354d4;
+  --tint-pink-soft: #fcebfa;
+  --tint-orange: #f5784f;
+  --tint-orange-soft: #feeee8;
+  --tint-purple: #9a5cf5;
+  --tint-purple-soft: #f2eafe;
+  --tint-sky: #0ca3e7;
+  --tint-sky-soft: #e4f5fd;
+  /* extension / call states */
+  --st-idle: #13a06f;
+  --st-idle-soft: #e1f6ee;
+  --st-ring: #c47a00;
+  --st-ring-soft: #fdf1d9;
+  --st-talk: #e04848;
+  --st-talk-soft: #fde8e8;
+  --st-hold: #6250d6;
+  --st-hold-soft: #ece9fb;
+  --st-off: #8a8f99;
+  --st-off-soft: #eceef1;
+  /* chart series */
+  --series-1: #5c67f7;
+  --series-2: #e354d4;
+  --series-3: #13a06f;
+  --grid: #ebecf2;
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #17171b;
+  --surface: #202024;
+  --surface-2: #28282d;
+  --surface-3: #323238;
+  --line: #2d2d33;
+  --ink: #e9eaef;
+  --ink-2: #b4b6c2;
+  --ink-3: #8b8d9a;
+  --accent: #6973f8;
+  --accent-ink: #ffffff;
+  --accent-soft: #25274a;
+  --card-border: #29292f;
+  --shadow-card: none;
+  --nav-bg: #1c1c20;
+  --nav-ink: #a9abb8;
+  --nav-label: #6f717e;
+  --nav-hover: rgb(255 255 255 / .05);
+  --nav-active: rgb(255 255 255 / .08);
+  --nav-line: rgb(255 255 255 / .06);
+  --tint-pink: #ea6cdc;
+  --tint-pink-soft: #3a2338;
+  --tint-orange: #f78c68;
+  --tint-orange-soft: #3a2820;
+  --tint-purple: #a978f7;
+  --tint-purple-soft: #2e2445;
+  --tint-sky: #3bb6ee;
+  --tint-sky-soft: #1a3140;
+  --st-idle: #2fc28a;
+  --st-idle-soft: #16332a;
+  --st-ring: #f0a92b;
+  --st-ring-soft: #3a2d12;
+  --st-talk: #f26b6b;
+  --st-talk-soft: #3d1f21;
+  --st-hold: #9085e9;
+  --st-hold-soft: #27234a;
+  --st-off: #6f7582;
+  --st-off-soft: #26272d;
+  --series-1: #6973f8;
+  --series-2: #e464d8;
+  --series-3: #2fb585;
+  --grid: #2b2b31;
+}

@@ -1,7 +1,12 @@
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 LDFLAGS := -s -w -X main.version=$(VERSION)
 
-.PHONY: build test lab cross clean
+.PHONY: build web test lab cross clean
+
+# The web panel is built into internal/panel/dist and embedded in mahan-agent.
+# The built files are committed, so `make build` works without Node.
+web:
+	cd web && npm ci --no-audit --no-fund && npm run build
 
 build:
 	CGO_ENABLED=0 go build -ldflags "$(LDFLAGS)" -o bin/ ./cmd/...

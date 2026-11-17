@@ -8,7 +8,7 @@ Wants=systemd-networkd.service
 
 [Service]
 Type=simple
-ExecStart=/usr/sbin/mahan-agent --state /var/lib/mahan-router --socket /run/mahan-router/agent.sock
+ExecStart=/usr/sbin/mahan-agent --state /var/lib/mahan-router --socket /run/mahan-router/agent.sock --panel-listen :443 --panel-http :80
 Restart=always
 RestartSec=2
 RuntimeDirectory=mahan-router

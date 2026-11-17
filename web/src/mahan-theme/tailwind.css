@@ -1,0 +1,39 @@
+/* Mahan theme for Tailwind 4. Import after "tailwindcss". Gives bg-surface, text-ink-2, border-line, bg-accent, text-idle … and the dark: variant. */
+@import "./tokens.css";
+@import "./components.css";
+
+@source inline("{bg,text,border}-{idle,ring,talk,hold,off,accent,pink,orange,purple,sky}{,-soft}");
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+@theme {
+  --font-sans: "Vazirmatn", ui-sans-serif, system-ui, sans-serif;
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-line: var(--line);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-accent-soft: var(--accent-soft);
+  --color-idle: var(--st-idle);
+  --color-idle-soft: var(--st-idle-soft);
+  --color-ring: var(--st-ring);
+  --color-ring-soft: var(--st-ring-soft);
+  --color-talk: var(--st-talk);
+  --color-talk-soft: var(--st-talk-soft);
+  --color-hold: var(--st-hold);
+  --color-hold-soft: var(--st-hold-soft);
+  --color-off: var(--st-off);
+  --color-off-soft: var(--st-off-soft);
+  --color-pink: var(--tint-pink);
+  --color-pink-soft: var(--tint-pink-soft);
+  --color-orange: var(--tint-orange);
+  --color-orange-soft: var(--tint-orange-soft);
+  --color-purple: var(--tint-purple);
+  --color-purple-soft: var(--tint-purple-soft);
+  --color-sky: var(--tint-sky);
+  --color-sky-soft: var(--tint-sky-soft);
+}

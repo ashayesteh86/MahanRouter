@@ -74,6 +74,11 @@ check_lan() {
   if ip netns exec $NS dig +time=5 +tries=3 @192.168.88.1 deb.debian.org A +short | grep -qE '^[0-9.]+$'; then
     ok "Unbound on router resolves for LAN"
   else bad "DNS via router"; fi
+  if ip netns exec $NS curl -sk -m 10 https://192.168.88.1/ | grep -q "Mahan Router"; then ok "web panel on https://192.168.88.1"; else bad "web panel"; fi
+  if ip netns exec $NS curl -sk -m 10 -H 'Content-Type: application/json' -d '{"username":"admin","password":"mahan"}' https://192.168.88.1/panel/api/login | grep -q '"user":"admin"'; then
+    ok "web panel login admin/mahan"
+  else bad "web panel login"; fi
+  if ip netns exec $NS curl -s -m 10 -o /dev/null -w '%{http_code}' http://192.168.88.1/ | grep -q 301; then ok "http redirects to https"; else bad "http redirect"; fi
   local web; web=$(getent ahostsv4 deb.debian.org | awk 'NR==1{print $1}')
   if ip netns exec $NS timeout 20 curl -s -o /dev/null -f --resolve deb.debian.org:80:$web http://deb.debian.org/debian/; then
     ok "LAN client reaches internet through NAT"

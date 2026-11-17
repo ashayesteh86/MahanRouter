@@ -1,0 +1,10 @@
+@import "tailwindcss";
+@import "./mahan-theme/fonts.css";
+@import "./mahan-theme/tailwind.css";
+
+html, body { background: var(--bg); color: var(--ink); font-family: var(--font-sans); }
+.ltr { direction: ltr; unicode-bidi: isolate; }
+.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+.diff-add { background: var(--st-idle-soft); color: var(--st-idle); }
+.diff-del { background: var(--st-talk-soft); color: var(--st-talk); }
+.diff-hunk { color: var(--accent); }

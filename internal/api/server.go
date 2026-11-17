@@ -24,15 +24,34 @@ import (
 
 // Server is the HTTP API.
 type Server struct {
-	Agent *agent.Agent
-	Token string // required on TCP; empty disables token auth
+	Agent   *agent.Agent
+	Token   string // required on TCP; empty disables token auth
+	Version string
 }
 
 const maxBody = 4 << 20
 
 // Handler returns the API routes. trusted=true skips token auth (Unix socket).
 func (s *Server) Handler(trusted bool) http.Handler {
+	mux := s.Routes()
+	if trusted {
+		return withUser(mux, "root")
+	}
+	return s.auth(mux)
+}
+
+// Routes returns the API without authentication. The caller must
+// authenticate and set X-Mahan-User (the web panel does this).
+func (s *Server) Routes() *http.ServeMux {
 	mux := http.NewServeMux()
+	mux.HandleFunc("GET /api/v1/config/candidate.json", s.getCandidateJSON)
+	mux.HandleFunc("PUT /api/v1/config/candidate.json", s.putCandidateJSON)
+	mux.HandleFunc("GET /api/v1/config/running.json", s.getRunningJSON)
+	mux.HandleFunc("GET /api/v1/system", s.system)
+	mux.HandleFunc("GET /api/v1/interfaces", s.interfaces)
+	mux.HandleFunc("GET /api/v1/routes", s.routes)
+	mux.HandleFunc("GET /api/v1/dhcp/leases", s.leases)
+	mux.HandleFunc("POST /api/v1/tools", s.tool)
 	mux.HandleFunc("GET /api/v1/config/running", s.getRunning)
 	mux.HandleFunc("GET /api/v1/config/candidate", s.getCandidate)
 	mux.HandleFunc("PUT /api/v1/config/candidate", s.putCandidate)
@@ -47,10 +66,7 @@ func (s *Server) Handler(trusted bool) http.Handler {
 	mux.HandleFunc("POST /api/v1/rollback", s.rollback)
 	mux.HandleFunc("GET /api/v1/status", s.status)
 	mux.HandleFunc("GET /api/v1/firewall/counters", s.counters)
-	if trusted {
-		return withUser(mux, "root")
-	}
-	return s.auth(mux)
+	return mux
 }
 
 func withUser(h http.Handler, user string) http.Handler {
