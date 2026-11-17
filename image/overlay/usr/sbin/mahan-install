@@ -6,10 +6,12 @@
 #   mahan-install --from-cmdline  used by the boot menu (mahan.install) and
 #                                 by tests (mahan.autoinstall=/dev/sda)
 #
-# Layout (GPT, boots on BIOS and UEFI):
-#   1  1 MiB    BIOS boot
-#   2  512 MiB  EFI system (FAT32)
-#   3  rest     root (ext4, label mahan-root)
+# Layout (MBR/msdos, boots on BIOS and UEFI):
+#   1  512 MiB  EFI system (FAT32, type 0xef)
+#   2  rest     root (ext4, label mahan-root, active/boot flag)
+# MBR, not GPT: some BIOSes (VMware's among them) report "No bootable device"
+# for a GPT disk whose protective MBR has no active partition. GRUB for BIOS
+# lives in the gap after the MBR; UEFI boots EFI/BOOT/BOOTX64.EFI from the ESP.
 # Any configuration made in the live session is copied to the disk.
 set -euo pipefail
 
@@ -78,24 +80,23 @@ echo ">> partitioning $DISK"
 trap 'echo "error: installation failed at line $LINENO" >&2' ERR
 umount -R "$TARGET" 2>/dev/null || true
 wipefs -aq "$DISK"
-parted -s "$DISK" mklabel gpt \
-  mkpart bios 1MiB 2MiB set 1 bios_grub on \
-  mkpart esp fat32 2MiB 514MiB set 2 esp on \
-  mkpart root ext4 514MiB 100%
+parted -s "$DISK" mklabel msdos \
+  mkpart primary fat32 1MiB 513MiB set 1 esp on \
+  mkpart primary ext4 513MiB 100% set 2 boot on
 partprobe "$DISK" 2>/dev/null || true
 udevadm settle
-for _ in $(seq 20); do [ -b "$(part 3)" ] && break; sleep 0.5; done
+for _ in $(seq 20); do [ -b "$(part 2)" ] && break; sleep 0.5; done
 
 echo ">> creating filesystems"
-mkfs.vfat -F32 -n MAHAN-EFI "$(part 2)" >/dev/null
-mkfs.ext4 -q -F -L mahan-root "$(part 3)"
+mkfs.vfat -F32 -n MAHAN-EFI "$(part 1)" >/dev/null
+mkfs.ext4 -q -F -L mahan-root "$(part 2)"
 
 echo ">> copying system (takes a minute)"
 mkdir -p "$TARGET"
-mount "$(part 3)" "$TARGET"
+mount "$(part 2)" "$TARGET"
 cp -a "$SRC/." "$TARGET/"
 mkdir -p "$TARGET/boot/efi"
-mount "$(part 2)" "$TARGET/boot/efi"
+mount "$(part 1)" "$TARGET/boot/efi"
 
 # Keep what was configured in the live session.
 if [ -d /var/lib/mahan-router/repo ]; then
@@ -107,27 +108,42 @@ fi
 grep -qw mahan.selftest /proc/cmdline && touch "$TARGET/etc/mahan-router/selftest-on-boot"
 
 cat > "$TARGET/etc/fstab" <<EOF
-UUID=$(blkid -s UUID -o value "$(part 3)") / ext4 errors=remount-ro 0 1
-UUID=$(blkid -s UUID -o value "$(part 2)") /boot/efi vfat umask=0077 0 1
+UUID=$(blkid -s UUID -o value "$(part 2)") / ext4 errors=remount-ro 0 1
+UUID=$(blkid -s UUID -o value "$(part 1)") /boot/efi vfat umask=0077 0 1
 EOF
 : > "$TARGET/etc/machine-id"
+# The installer unit only belongs to the ISO. On the disk its Conflicts= with
+# getty@tty1 would stop the login prompt, leaving a black VMware console.
+rm -f "$TARGET/etc/systemd/system/multi-user.target.wants/mahan-installer.service" \
+      "$TARGET/etc/systemd/system/mahan-installer.service"
 
 echo ">> installing boot loader (BIOS + UEFI)"
 for d in dev proc sys run; do mount --rbind "/$d" "$TARGET/$d"; mount --make-rslave "$TARGET/$d"; done
-chroot "$TARGET" /bin/bash -euc "
-  export DEBIAN_FRONTEND=noninteractive
-  apt-get -y -qq purge live-boot live-boot-initramfs-tools >/dev/null 2>&1 || true
-  update-initramfs -u -k all >/dev/null 2>&1
-  grub-install --target=i386-pc '$DISK' >/dev/null 2>&1
-  grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=mahan --removable --no-nvram >/dev/null 2>&1
-  update-grub >/dev/null 2>&1
-"
+LOG=/var/log/mahan-install-chroot.log
+step() { # label command...
+  local label=$1; shift
+  echo "   - $label"
+  if ! timeout 1200 chroot "$TARGET" /usr/bin/env DEBIAN_FRONTEND=noninteractive "$@" >>"$LOG" 2>&1; then
+    echo "   ! $label failed, see $LOG"; tail -15 "$LOG"; return 1
+  fi
+}
+echo "   - removing live-boot"
+chroot "$TARGET" /usr/bin/env DEBIAN_FRONTEND=noninteractive apt-get -y -qq purge live-boot live-boot-initramfs-tools >>"$LOG" 2>&1 </dev/null || true
+ls "$TARGET"/boot/initrd.img-* >/dev/null 2>&1 || step "building initramfs" update-initramfs -c -k all
+step "GRUB for BIOS" grub-install --target=i386-pc "$DISK"
+step "GRUB for UEFI" grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=mahan --removable --no-nvram
+step "GRUB menu" update-grub
 sync
 umount -lR "$TARGET"
 
 echo
 echo "  Mahan Router is installed on $DISK."
-echo "  Remove the ISO and reboot."
 if [ "$REBOOT" = 1 ]; then
-  sync; sleep 2; systemctl reboot
+  sync; sleep 2; systemctl reboot; exit 0
 fi
+echo "  The ISO will be ejected. If the VM still boots the ISO, disconnect the CD."
+echo
+read -rp "  Press Enter to reboot into Mahan Router... " _ || true
+eject -m /dev/sr0 >/dev/null 2>&1 || eject /dev/cdrom >/dev/null 2>&1 || true
+sync
+systemctl reboot

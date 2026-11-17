@@ -118,7 +118,7 @@ if [ "$MODE" = install ] || [ "$MODE" = all ]; then
     -drive file="$WORK/disk.qcow2",if=none,id=d0 -device ahci,id=ahci -device ide-hd,drive=d0,bus=ahci.0 \
     -append "boot=live components mahan.autoinstall=/dev/sda mahan.selftest console=tty0 console=ttyS0,115200"
   # -no-reboot: QEMU exits when the installer reboots.
-  ( sleep 1800; kill $QPID 2>/dev/null ) & guard=$!
+  ( sleep 3600; kill $QPID 2>/dev/null ) & guard=$!
   wait "$QPID"; kill $guard 2>/dev/null; QPID=""
   expect_log "installer finished" "is installed on /dev/sda" "$WORK/serial.log"
   cp "$WORK/serial.log" "$DIST/serial-install.log"

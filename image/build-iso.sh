@@ -26,7 +26,7 @@ PACKAGES=(
   # hypervisor guest tools
   open-vm-tools qemu-guest-agent
   # installer
-  parted dosfstools e2fsprogs grub-pc-bin grub-efi-amd64-bin grub2-common efibootmgr
+  parted dosfstools e2fsprogs eject grub-pc-bin grub-efi-amd64-bin grub2-common efibootmgr
 )
 
 echo ">> building binaries ($VERSION)"
@@ -49,22 +49,14 @@ cp "$WORK"/rootfs/boot/vmlinuz-* "$ISO/live/vmlinuz"
 cp "$WORK"/rootfs/boot/initrd.img-* "$ISO/live/initrd.img"
 mksquashfs "$WORK/rootfs" "$ISO/live/filesystem.squashfs" -comp xz -noappend -quiet -e boot/efi
 cat > "$ISO/boot/grub/grub.cfg" <<EOF
-set timeout=8
+set timeout=5
 set default=0
 insmod all_video
 serial --speed=115200
 terminal_input console serial
 terminal_output console serial
-menuentry "Mahan Router $VERSION (live, try without installing)" {
-  linux /live/vmlinuz boot=live components quiet console=ttyS0,115200 console=tty0
-  initrd /live/initrd.img
-}
 menuentry "Install Mahan Router to disk" {
-  linux /live/vmlinuz boot=live components quiet mahan.install console=ttyS0,115200 console=tty0
-  initrd /live/initrd.img
-}
-menuentry "Mahan Router live + self-test report on serial console" {
-  linux /live/vmlinuz boot=live components mahan.selftest console=tty0 console=ttyS0,115200
+  linux /live/vmlinuz boot=live components nomodeset mahan.install console=ttyS0,115200 console=tty0
   initrd /live/initrd.img
 }
 EOF
