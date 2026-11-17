@@ -20,12 +20,14 @@ TARGET=/mnt/mahan-target
 YES=0
 DISK=""
 REBOOT=0
+FROM_BOOT=0
 
 die() { echo "error: $*" >&2; exit 1; }
 
 case "${1:-}" in
   --yes) YES=1; DISK=${2:-} ;;
   --from-cmdline)
+    FROM_BOOT=1
     for arg in $(cat /proc/cmdline); do
       case "$arg" in
         mahan.autoinstall=*) DISK=${arg#*=}; YES=1; REBOOT=1
@@ -43,15 +45,25 @@ esac
 # The disk the ISO itself is on must never be offered.
 LIVE_DEV=$(findmnt -n -o SOURCE /run/live/medium 2>/dev/null | sed 's/[0-9]*$//;s/p$//' || true)
 
-list_disks() {
-  lsblk -dn -o NAME,SIZE,TYPE,MODEL | awk '$3=="disk"' | while read -r name size _ model; do
+list_disks() { # disks of at least 2 GB, without the ISO, CD, floppy, loop or RAM devices
+  lsblk -dbn -o NAME,SIZE,TYPE | awk '$3=="disk" && $2>=2*1024^3 {print $1}' | while read -r name; do
     [ "/dev/$name" = "$LIVE_DEV" ] && continue
-    case $name in loop*|sr*|ram*|zram*) continue ;; esac
-    echo "/dev/$name $size $model"
+    case $name in loop*|sr*|fd*|ram*|zram*) continue ;; esac
+    echo "/dev/$name $(lsblk -dn -o SIZE,MODEL "/dev/$name" | xargs)"
   done
 }
 
 if [ -z "$DISK" ]; then
+  if [ "$FROM_BOOT" = 1 ]; then
+    # Started at boot: wait until the other boot jobs are done, keep kernel
+    # messages off the console, then start from a clean screen.
+    dmesg -n 1 2>/dev/null || true
+    for _ in $(seq 90); do
+      [ -z "$(systemctl list-jobs --no-legend 2>/dev/null | grep -v mahan-installer)" ] && break
+      sleep 1
+    done
+    printf '\033c'   # reset + clear the console
+  fi
   echo
   echo "  Mahan Router installer"
   echo "  ======================"
@@ -60,8 +72,12 @@ if [ -z "$DISK" ]; then
   [ ${#DISKS[@]} -gt 0 ] || die "no installable disk found"
   for i in "${!DISKS[@]}"; do echo "  $((i+1))) ${DISKS[$i]}"; done
   echo
-  read -rp "  Install to which disk? [1-${#DISKS[@]}] " n
-  [[ "$n" =~ ^[0-9]+$ ]] && [ "$n" -ge 1 ] && [ "$n" -le ${#DISKS[@]} ] || die "invalid choice"
+  while :; do
+    read -rp "  Install to which disk? [1-${#DISKS[@]}, Enter = 1] " n
+    n=${n:-1}
+    [[ "$n" =~ ^[0-9]+$ ]] && [ "$n" -ge 1 ] && [ "$n" -le ${#DISKS[@]} ] && break
+    echo "  Please type a number from the list."
+  done
   DISK=$(echo "${DISKS[$((n-1))]}" | cut -d' ' -f1)
 fi
 [ -b "$DISK" ] || die "$DISK is not a block device"
@@ -70,8 +86,12 @@ fi
 if [ "$YES" != 1 ]; then
   echo
   echo "  ALL DATA ON $DISK WILL BE ERASED."
-  read -rp "  Type YES to continue: " ok
-  [ "$ok" = YES ] || die "cancelled"
+  while :; do
+    read -rp "  Type YES to continue (or NO to cancel): " ok
+    [ "$ok" = YES ] && break
+    case "$ok" in [Nn][Oo]) echo "  Cancelled. Run mahan-install to start again."; exit 0 ;; esac
+    echo "  Please type YES in capital letters."
+  done
 fi
 
 part() { case "$DISK" in *[0-9]) echo "${DISK}p$1" ;; *) echo "${DISK}$1" ;; esac; }
