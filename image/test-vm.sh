@@ -99,6 +99,7 @@ check_report() { # label
   m2=$(awk '$1=="ether2"{print $3; exit}' "$WORK/report-$1.txt")
   mb=$(awk '$1=="bridge-lan"{print $3; exit}' "$WORK/report-$1.txt")
   if [ -n "$m2" ] && [ "$m2" = "$mb" ]; then ok "$1: bridge-lan uses ether2 MAC"; else bad "$1: bridge-lan MAC '$mb' != ether2 '$m2'"; fi
+  expect_log "$1: clock correct"           "^clock $(date -u +%Y-%m-%d)" "$WORK/report-$1.txt"
   expect_log "$1: firewall table loaded"   'table inet mahan'          "$WORK/report-$1.txt"
   expect_log "$1: factory default commit"  'factory default'          "$WORK/report-$1.txt"
   cp "$WORK/report-$1.txt" "$DIST/selftest-$1.txt"
@@ -136,6 +137,9 @@ if [ "$MODE" = install ] || [ "$MODE" = all ]; then
     echo "== boot installed disk ($fw)"
     : > "$WORK/serial.log"; lan_up
     extra=()
+    # BIOS run starts with a clock months off, like VMware often does:
+    # DNSSEC then fails until mahan-timesync-bootstrap fixes the time.
+    [ $fw = bios ] && extra=(-rtc base=2026-04-27T20:00:00)
     if [ $fw = uefi ]; then
       cp /usr/share/OVMF/OVMF_VARS_4M.fd "$WORK/vars.fd"
       extra=(-drive if=pflash,format=raw,readonly=on,file=/usr/share/OVMF/OVMF_CODE_4M.fd -drive if=pflash,format=raw,file="$WORK/vars.fd")

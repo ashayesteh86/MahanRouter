@@ -34,7 +34,7 @@ cp /etc/issue /etc/issue.net
 systemctl enable systemd-networkd mahan-agent nftables open-vm-tools ssh
 systemctl disable kea-dhcp4-server unbound frr 2>/dev/null || true
 systemctl mask systemd-networkd-wait-online.service
-systemctl enable mahan-selftest mahan-installer
+systemctl enable mahan-selftest mahan-installer mahan-timesync-bootstrap
 systemctl set-default multi-user.target
 
 # Empty machine-id: regenerated on first boot.

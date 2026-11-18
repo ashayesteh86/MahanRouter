@@ -9,6 +9,10 @@ if [ "${1:-}" = --boot ]; then
     sleep 5
   done
   sleep 30
+  for _ in $(seq 36); do # wait for the clock (mahan-timesync-bootstrap)
+    chronyc -n tracking 2>/dev/null | grep -qE '^Reference ID +: (00000000|7F7F0101)' || break
+    sleep 5
+  done
   "$0" > "$LOG" 2>&1
   for tty in /dev/ttyS0 /dev/console; do cat "$LOG" > "$tty" 2>/dev/null; done
   exit 0
@@ -16,6 +20,7 @@ fi
 echo "=== MAHAN SELFTEST BEGIN ==="
 echo "--- version"; cat /etc/mahan-router/version 2>/dev/null
 echo "--- boot"; grep -q boot=live /proc/cmdline && echo live || echo installed
+echo "--- clock"; date -u '+clock %Y-%m-%d %H:%M UTC'; journalctl -u mahan-timesync-bootstrap -b -o cat --no-pager | tail -3
 echo "--- services"
 for s in mahan-agent systemd-networkd nftables kea-dhcp4-server unbound frr chrony ssh; do
   printf '%-18s %s\n' "$s" "$(systemctl is-active $s)"
