@@ -118,6 +118,7 @@ func TestNetworkd(t *testing.T) {
 		"/etc/systemd/network/30-mr-ether3.network":     {"Bridge=bridge-lan"},
 		"/etc/systemd/network/30-mr-bridge-lan.network": {"Address=192.168.10.1/24", "VLAN=vlan20"},
 		"/etc/systemd/network/20-mr-vlan20.netdev":      {"Kind=vlan", "Id=20"},
+		"/etc/systemd/network/20-mr-bridge-lan.netdev":  {"Kind=bridge", "MACAddress=52:54:00:00:00:03"},
 		"/etc/systemd/network/20-mr-wg-hq.netdev":       {"PrivateKeyFile=/etc/mahan-router/secrets/wg-hq.key", "RouteTable=main", "Endpoint=hq.example.com:51820"},
 		"/etc/systemd/network/30-mr-wg-hq.network":      {"Destination=10.0.0.0/16", "Gateway=10.255.0.1"},
 		"/etc/systemd/network/30-mr-ether2.network":     {"DHCP=ipv4", "RouteMetric=200", "UseDNS=no"},

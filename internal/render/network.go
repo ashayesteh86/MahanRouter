@@ -85,7 +85,7 @@ func renderNetwork(c *config.Config, b Bundle) error {
 		}
 
 		// .netdev: virtual interfaces.
-		if err := renderNetdev(&ifc, b); err != nil {
+		if err := renderNetdev(c, &ifc, b); err != nil {
 			return err
 		}
 
@@ -187,7 +187,21 @@ func renderNetwork(c *config.Config, b Bundle) error {
 	return nil
 }
 
-func renderNetdev(ifc *config.Interface, b Bundle) error {
+// bridgeMAC returns the MAC of the bridge's first Ethernet member, like
+// RouterOS auto-mac. Without it the kernel/networkd picks a MAC that no
+// NIC owns, and virtual switches that only deliver frames to the vNIC's
+// own MAC (VMware vSwitch, Hyper-V, most clouds) drop all LAN traffic
+// addressed to the router.
+func bridgeMAC(c *config.Config, br *config.Interface) string {
+	for _, m := range br.Members {
+		if mi := c.Interface(m); mi != nil && mi.Type == config.IfEthernet && mi.MAC != "" {
+			return strings.ToLower(mi.MAC)
+		}
+	}
+	return ""
+}
+
+func renderNetdev(c *config.Config, ifc *config.Interface, b Bundle) error {
 	var w ini
 	w.section("NetDev")
 	w.kv("Name", ifc.Name)
@@ -198,6 +212,9 @@ func renderNetdev(ifc *config.Interface, b Bundle) error {
 		w.kv("Id", ifc.VLANID)
 	case config.IfBridge:
 		w.kv("Kind", "bridge")
+		if mac := bridgeMAC(c, ifc); mac != "" {
+			w.kv("MACAddress", mac)
+		}
 		w.section("Bridge")
 		w.kv("STP", yesNo(ifc.STP))
 	case config.IfBond:

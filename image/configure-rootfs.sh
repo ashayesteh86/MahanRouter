@@ -21,7 +21,10 @@ cat > /etc/issue <<'EOF'
   Mahan Router  \n  (\l)
 
   Login: root / mahan   (change it with: passwd)
+  WAN  ether1     : \4{ether1}
+  LAN  bridge-lan : \4{bridge-lan}   web panel: https://\4{bridge-lan}
   Default: ether1 = WAN (DHCP client), other ports = LAN bridge 192.168.88.1/24
+  Port status: ip -br link
   Commands: mrctl help | mahan-install (install to disk) | mahan-selftest
 
 EOF
