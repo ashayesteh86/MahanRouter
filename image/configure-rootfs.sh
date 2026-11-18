@@ -40,6 +40,8 @@ systemctl set-default multi-user.target
 # Empty machine-id: regenerated on first boot.
 : > /etc/machine-id
 rm -f /var/lib/dbus/machine-id
+# No SSH host keys in the image: each router makes its own on first start.
+rm -f /etc/ssh/ssh_host_*
 
 # Initramfs with live-boot hooks for the ISO.
 update-initramfs -u -k all

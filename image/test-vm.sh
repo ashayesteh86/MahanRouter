@@ -100,6 +100,7 @@ check_report() { # label
   mb=$(awk '$1=="bridge-lan"{print $3; exit}' "$WORK/report-$1.txt")
   if [ -n "$m2" ] && [ "$m2" = "$mb" ]; then ok "$1: bridge-lan uses ether2 MAC"; else bad "$1: bridge-lan MAC '$mb' != ether2 '$m2'"; fi
   expect_log "$1: clock correct"           "^clock $(date -u +%Y-%m-%d)" "$WORK/report-$1.txt"
+  expect_log "$1: ssh active"              '^ssh +active'             "$WORK/report-$1.txt"
   expect_log "$1: firewall table loaded"   'table inet mahan'          "$WORK/report-$1.txt"
   expect_log "$1: factory default commit"  'factory default'          "$WORK/report-$1.txt"
   cp "$WORK/report-$1.txt" "$DIST/selftest-$1.txt"
