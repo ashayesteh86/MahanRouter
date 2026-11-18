@@ -99,9 +99,14 @@ type PPPoE struct {
 
 // WireGuard interface settings.
 type WireGuard struct {
-	PrivateKey string          `yaml:"private_key" json:"private_key"`
-	ListenPort int             `yaml:"listen_port,omitempty" json:"listen_port,omitempty"`
-	Peers      []WireGuardPeer `yaml:"peers,omitempty" json:"peers,omitempty"`
+	PrivateKey string `yaml:"private_key" json:"private_key"`
+	ListenPort int    `yaml:"listen_port,omitempty" json:"listen_port,omitempty"`
+	// ClientEndpoint is the public host[:port] that client configs made in
+	// the panel point at. It is not used on the router itself.
+	ClientEndpoint string `yaml:"client_endpoint,omitempty" json:"client_endpoint,omitempty"`
+	// ClientDNS is the DNS server put into client configs.
+	ClientDNS string          `yaml:"client_dns,omitempty" json:"client_dns,omitempty"`
+	Peers     []WireGuardPeer `yaml:"peers,omitempty" json:"peers,omitempty"`
 }
 
 // WireGuardPeer is one remote WireGuard peer.

@@ -27,7 +27,7 @@ export interface Iface {
   bond_mode?: string;
   stp?: boolean;
   pppoe?: { username: string; password: string; service_name?: string; add_default_route?: boolean; use_peer_dns?: boolean };
-  wireguard?: { private_key: string; listen_port?: number; peers?: WGPeer[] };
+  wireguard?: { private_key: string; listen_port?: number; client_endpoint?: string; client_dns?: string; peers?: WGPeer[] };
   addressing?: "static" | "dhcp" | "none";
   addresses?: string[];
   dhcp_use_dns?: boolean;

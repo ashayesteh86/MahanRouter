@@ -12,6 +12,7 @@ import Dns from "./pages/Dns";
 import RoutesPage from "./pages/Routes";
 import Changes from "./pages/Changes";
 import Tools from "./pages/Tools";
+import Vpn from "./pages/Vpn";
 import Settings from "./pages/Settings";
 
 export interface Me { user: string; must_change: boolean; version: string }
@@ -23,6 +24,7 @@ const NAV = [
   { to: "/dhcp", icon: "dhcp", label: t("DHCP سرور", "DHCP server"), el: <Dhcp /> },
   { to: "/dns", icon: "globe", label: "DNS", el: <Dns /> },
   { to: "/routes", icon: "route", label: t("مسیریابی", "Routing"), el: <RoutesPage /> },
+  { to: "/vpn", icon: "lock", label: "VPN", el: <Vpn /> },
   { to: "/tools", icon: "tool", label: t("ابزارها", "Tools"), el: <Tools /> },
   { to: "/changes", icon: "history", label: t("تغییرات و تاریخچه", "Changes & history"), el: <Changes /> },
   { to: "/settings", icon: "settings", label: t("تنظیمات", "Settings"), el: <Settings />, path: "/settings/:tab?" },
