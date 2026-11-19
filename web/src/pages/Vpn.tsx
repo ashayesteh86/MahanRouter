@@ -358,13 +358,13 @@ export function ClientResult({ name, file, conf, onClose, steps }: { name: strin
       footer={<><button className="btn" onClick={download}><Icon name="down" className="size-4" />{t("دانلود", "Download")} <Ltr>{file}</Ltr></button><button className="btn btn-primary" onClick={onClose}>{t("تمام", "Done")}</button></>}>
       <div className="grid gap-5 md:grid-cols-[260px_1fr]">
         <div className="rounded-lg bg-white p-2" dangerouslySetInnerHTML={{ __html: svg }} />
-        <div className="space-y-3">
+        <div className="min-w-0 space-y-3">
           <div className="rounded-md bg-ring-soft p-3 text-sm text-ring">{t("کلید خصوصی این کلاینت فقط همین حالا نمایش داده می‌شود و روی روتر ذخیره نمی‌شود. اگر گم شد، کلاینت را حذف کنید و دوباره بسازید.", "This client's private key is shown only now and is not stored on the router. If it is lost, delete the client and create it again.")}</div>
           {steps || <ol className="list-decimal space-y-1 ps-5 text-sm text-ink-2">
             <li>{t("در گوشی برنامه‌ی WireGuard را نصب کنید و با «+» این QR را اسکن کنید (یا فایل را در ویندوز Import کنید).", "Install the WireGuard app and scan this QR with \"+\" (or import the file on Windows).")}</li>
             <li>{t("در صفحه‌ی «تغییرات» این تغییر را اعمال و تأیید کنید.", "Apply and confirm the change on the Changes page.")}</li>
           </ol>}
-          <pre className="ltr mono max-h-64 overflow-auto rounded-md bg-surface-2 p-3 text-left text-xs">{conf}</pre>
+          <pre className="ltr mono max-h-64 overflow-auto whitespace-pre-wrap break-all rounded-md bg-surface-2 p-3 text-left text-xs">{conf}</pre>
         </div>
       </div>
     </Modal>

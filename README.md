@@ -124,6 +124,10 @@ factory default does not let the WAN reach it.
   - DHCP: pools, reservations and current leases
   - DNS
   - Static routes, with the live routing table
+  - VPN:
+    - WireGuard: servers with QR client configs, site-to-site peers, live
+      handshake and traffic
+    - Rozaneh: see [VPN: Rozaneh](#vpn-rozaneh)
   - Tools: ping, traceroute and DNS lookup
   - Changes: diff, apply, history, rollback and a raw YAML editor
   - Settings: system, NTP and panel users
@@ -138,6 +142,51 @@ factory default does not let the WAN reach it.
     embedded with `go:embed`.
   - For development, run `cd web && npm run dev` against an agent started with
     `--panel-listen 127.0.0.1:8443`.
+
+## VPN: Rozaneh
+
+Rozaneh is our own VPN (Veil protocol, repository `mahan-vpn`). The binary is
+built from `../mahan-vpn` by `make rozaneh` and installed as `/usr/sbin/rozaneh`.
+
+- **Client** (`type: rozaneh`, e.g. `rz1`): the router connects to a Rozaneh
+  server with a `rozaneh://config/…` link. The panel puts the interface in the
+  WAN list, so traffic out of it is masqueraded and new connections from it are
+  dropped like from WAN.
+  - The config is rendered to `/etc/mahan-router/rozaneh/<name>.json` with
+    `full_tunnel: false`.
+  - It runs as `mahan-rozaneh-client@<name>`.
+  - The router itself decides what goes through the tunnel (policy routes,
+    below).
+- **Server** (`type: rozaneh_server`, `rzs0`): phones and laptops connect to
+  the router from outside.
+  - Needs a domain that points at the router's public IP.
+  - The certificate comes from Let's Encrypt (TLS-ALPN-01 on port 443), or you
+    paste your own.
+  - Rozaneh listens on 8443 because the panel holds 443. The panel adds a WAN
+    redirect 443→8443 and an input accept for 8443.
+  - Anyone without a key sees a built-in "Welcome to nginx" page, unless
+    `cover_url` points at a real site.
+  - Peers live in the router config (`peers_from_config`). Their traffic and
+    last-seen time come from `/var/lib/mahan-router/rozaneh/<name>/state.json`,
+    which the server saves every minute.
+  - It runs as `mahan-rozaneh-server@<name>`.
+- **Policy routes** (`policy_routes`, any tunnel interface): send traffic out
+  of a tunnel instead of the main table. Each route has:
+  - `from`: `lan` (the LAN interface list) or `devices` (IPs or prefixes)
+  - `except_iran`: Iranian destinations stay direct. The list is
+    `internal/render/geoip/ir4.txt`, built from RIPE `delegated-ripencc-latest`
+    and embedded in the agent.
+  - `dns_via_tunnel`: Unbound's own queries go through the tunnel.
+  - `block_if_down`: an unreachable default route in the tunnel table, so the
+    traffic stops instead of leaking out the WAN.
+
+  How it works:
+  - nftables marks matching packets in `policy_pre` (prerouting, mangle). Only
+    the original direction is marked, so port forwards keep working.
+    Private, multicast and Iranian destinations are never marked.
+  - `ip rule fwmark X lookup main suppress_prefixlength 0`, then
+    `fwmark X lookup 1000+i`, where the tunnel's `.network` file puts its
+    default route. Specific routes (LAN, static, site-to-site) still win.
 
 ## CLI
 
@@ -169,6 +218,9 @@ mrctl render my.yaml --out /tmp/preview   # offline: see the generated files
 | POST | `/api/v1/rollback` | `{"revision": "HEAD~1"}` |
 | GET | `/api/v1/status` | revision, pending confirm, `ip -j addr` |
 | GET | `/api/v1/firewall/counters` | packets/bytes per rule tag |
+| POST | `/api/v1/wireguard/keypair`, `/api/v1/wireguard/pubkey` | X25519 keys (also used for Rozaneh) |
+| GET | `/api/v1/wireguard/status` | `wg show all dump`, parsed |
+| GET | `/api/v1/rozaneh/status` | unit state, tunnel address, traffic, log, server peers |
 
 The Unix socket needs no token, because it is root-only. The TCP listener
 (`--listen`) requires `Authorization: Bearer <token>` from
@@ -186,4 +238,5 @@ Debian 12 packages:
 - `frr`
 - `ppp`
 - `wireguard-tools`
+- `rozaneh` (from `../mahan-vpn`, not a Debian package)
 - `git`
