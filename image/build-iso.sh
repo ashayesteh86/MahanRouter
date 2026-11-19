@@ -32,11 +32,18 @@ PACKAGES=(
 echo ">> building binaries ($VERSION)"
 make -C "$ROOT" build rozaneh sing-box VERSION="$VERSION" >/dev/null
 
+# Rozaneh is optional (its source is private); install it when it was built.
+ROZANEH_HOOK=()
+if [ -x "$ROOT/bin/rozaneh" ]; then
+  ROZANEH_HOOK=(--customize-hook="install -m755 '$ROOT/bin/rozaneh' \"\$1/usr/sbin/\"")
+fi
+
 echo ">> bootstrapping Debian 12 (this takes a few minutes)"
 mmdebstrap --variant=minbase --components=main,contrib,non-free-firmware \
   --include="$(IFS=,; echo "${PACKAGES[*]}")" \
   --customize-hook="cp -a '$ROOT/image/overlay/.' \"\$1/\"" \
-  --customize-hook="install -m755 '$ROOT/bin/mahan-agent' '$ROOT/bin/mrctl' '$ROOT/bin/rozaneh' '$ROOT/bin/sing-box' \"\$1/usr/sbin/\"" \
+  --customize-hook="install -m755 '$ROOT/bin/mahan-agent' '$ROOT/bin/mrctl' '$ROOT/bin/sing-box' \"\$1/usr/sbin/\"" \
+  "${ROZANEH_HOOK[@]}" \
   --customize-hook="install -m644 '$ROOT/packaging/systemd/'*.service \"\$1/etc/systemd/system/\"" \
   --customize-hook="mkdir -p \"\$1/etc/mahan-router\" && echo '$VERSION' > \"\$1/etc/mahan-router/version\"" \
   --customize-hook="cp '$ROOT/image/configure-rootfs.sh' \"\$1/tmp/configure.sh\" && chroot \"\$1\" /bin/bash -e /tmp/configure.sh" \

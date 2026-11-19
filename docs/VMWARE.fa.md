@@ -54,7 +54,7 @@ mahan-selftest             # گزارش وضعیت سرویس‌ها
 ### باز کردن SSH از سمت WAN (مثلاً برای مدیریت از شبکه‌ی اداره)
 در `mrctl edit`، قبل از rule «drop all not coming from LAN» این را اضافه کنید:
 ```yaml
-    - { chain: input, action: accept, in_interface_list: WAN, src_address: 192.168.81.0/24, protocol: tcp, dst_port: "22", comment: "SSH from office" }
+    - { chain: input, action: accept, in_interface_list: WAN, src_address: 192.168.1.0/24, protocol: tcp, dst_port: "22", comment: "SSH from office" }
 ```
 بعد `mrctl commit --confirm 120` بزنید. اگر هنوز وصل هستید، `mrctl confirm` را اجرا کنید.
 

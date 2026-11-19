@@ -28,8 +28,12 @@ bin/sing-box:
 	echo "$(SINGBOX_SHA256)  dist/cache/$(SINGBOX_TGZ)" | sha256sum -c -
 	tar -xzf dist/cache/$(SINGBOX_TGZ) -C bin --strip-components=1 sing-box-$(SINGBOX_VERSION)-linux-amd64/sing-box
 
+# Rozaneh's source is not public yet: without it the image is built without
+# /usr/sbin/rozaneh and the Rozaneh tab cannot start its tunnels.
 rozaneh:
-	cd $(ROZANEH_SRC) && CGO_ENABLED=0 go build -trimpath -ldflags "-s -w" -o $(CURDIR)/bin/rozaneh ./cmd/rozaneh
+	@if [ -d $(ROZANEH_SRC)/cmd/rozaneh ]; then \
+		cd $(ROZANEH_SRC) && CGO_ENABLED=0 go build -trimpath -ldflags "-s -w" -o $(CURDIR)/bin/rozaneh ./cmd/rozaneh; \
+	else echo "rozaneh: $(ROZANEH_SRC) not found, skipping"; fi
 
 test:
 	go vet ./...
