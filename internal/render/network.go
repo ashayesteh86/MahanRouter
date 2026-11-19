@@ -105,11 +105,15 @@ func renderNetwork(c *config.Config, b Bundle) error {
 		if ifc.Comment != "" {
 			w.kv("Description", ifc.Comment)
 		}
-		if ifc.Type == config.IfPPPoE {
-			// pppd owns the addresses; networkd only shapes and keeps hands off.
+		if ifc.Type == config.IfPPPoE || ifc.Type == config.IfRozaneh || ifc.Type == config.IfRozanehServer {
+			// pppd / rozaneh own the addresses; networkd only shapes and
+			// routes, and keeps its hands off.
 			w.kv("KeepConfiguration", "yes")
 			w.kv("LinkLocalAddressing", "no")
 			w.kv("IPv6AcceptRA", "no")
+			if ifc.Type != config.IfPPPoE {
+				w.kv("ConfigureWithoutCarrier", "yes")
+			}
 		} else {
 			if m := master[ifc.Name]; m != nil {
 				if m.Type == config.IfBridge {
@@ -161,6 +165,7 @@ func renderNetwork(c *config.Config, b Bundle) error {
 				w.kv("Metric", r.Distance)
 			}
 		}
+		policyRoutesFor(c, ifc.Name, &w)
 		if ifc.Shaping != nil {
 			w.section("CAKE")
 			w.kv("Bandwidth", ifc.Shaping.Bandwidth)
@@ -168,12 +173,13 @@ func renderNetwork(c *config.Config, b Bundle) error {
 		b.add(networkPath(ifc.Name), CompNetwork, 0o644, w.String())
 	}
 
-	if len(blackholes) > 0 {
-		var w ini
-		w.section("Match")
-		w.kv("Name", "lo")
-		w.section("Link")
-		w.kv("RequiredForOnline", "no")
+	var lo ini
+	lo.section("Match")
+	lo.kv("Name", "lo")
+	lo.section("Link")
+	lo.kv("RequiredForOnline", "no")
+	if policyLo(c, &lo) || len(blackholes) > 0 {
+		w := &lo
 		for _, r := range blackholes {
 			w.section("Route")
 			w.kv("Destination", r.Destination)

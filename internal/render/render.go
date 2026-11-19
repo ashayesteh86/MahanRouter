@@ -23,10 +23,11 @@ const (
 	CompDHCP     = "dhcp"
 	CompDNS      = "dns"
 	CompNTP      = "ntp"
+	CompVPN      = "vpn"
 )
 
 // Order is the apply order of components.
-var Order = []string{CompSystem, CompNetwork, CompFirewall, CompPPP, CompRouting, CompDHCP, CompDNS, CompNTP}
+var Order = []string{CompSystem, CompNetwork, CompFirewall, CompVPN, CompPPP, CompRouting, CompDHCP, CompDNS, CompNTP}
 
 // File is one rendered file.
 type File struct {
@@ -94,6 +95,9 @@ func Render(c *config.Config) (Bundle, error) {
 	}
 	b.add(NftablesFile, CompFirewall, 0o644, nft)
 	b.add(NftablesConf, CompFirewall, 0o755, "#!/usr/sbin/nft -f\n# "+Header+"\ninclude \"/etc/nftables.d/*.nft\"\n")
+	if err := renderRozaneh(c, b); err != nil {
+		return nil, err
+	}
 	renderPPP(c, b)
 	renderFRR(c, b)
 	if err := renderKea(c, b); err != nil {

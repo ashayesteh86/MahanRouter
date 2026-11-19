@@ -11,11 +11,25 @@ export interface Config {
   dhcp_servers?: DHCPServer[];
   dns?: DNS;
   ntp?: { servers?: string[]; serve_to?: string[] };
+  policy_routes?: PolicyRoute[];
+}
+
+export interface PolicyRoute {
+  interface: string; comment?: string; disabled?: boolean;
+  from: "lan" | "devices"; devices?: string[];
+  except_iran?: boolean; dns_via_tunnel?: boolean; block_if_down?: boolean;
+}
+
+export interface RozanehPeer { name: string; public_key: string; ip: string; disabled?: boolean }
+export interface RozanehServer {
+  domain: string; acme_email?: string; cert_pem?: string; key_pem?: string;
+  public_port?: number; listen_port?: number; path: string; private_key: string;
+  cover_url?: string; cover_traffic?: boolean; client_dns?: string[]; peers?: RozanehPeer[];
 }
 
 export interface Iface {
   name: string;
-  type: "ethernet" | "vlan" | "bridge" | "bond" | "pppoe" | "wireguard" | "loopback";
+  type: "ethernet" | "vlan" | "bridge" | "bond" | "pppoe" | "wireguard" | "loopback" | "rozaneh" | "rozaneh_server";
   comment?: string;
   disabled?: boolean;
   mtu?: number;
@@ -27,6 +41,8 @@ export interface Iface {
   bond_mode?: string;
   stp?: boolean;
   pppoe?: { username: string; password: string; service_name?: string; add_default_route?: boolean; use_peer_dns?: boolean };
+  rozaneh?: { link: string; method?: "auto" | "tunnel" | "dns" };
+  rozaneh_server?: RozanehServer;
   wireguard?: { private_key: string; listen_port?: number; client_endpoint?: string; client_dns?: string; peers?: WGPeer[] };
   addressing?: "static" | "dhcp" | "none";
   addresses?: string[];

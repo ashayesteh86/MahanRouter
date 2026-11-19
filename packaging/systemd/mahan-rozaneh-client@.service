@@ -1,0 +1,14 @@
+[Unit]
+Description=Mahan Router Rozaneh client %i
+After=systemd-networkd.service network-online.target
+Wants=network-online.target
+ConditionPathExists=/etc/mahan-router/rozaneh/%i.json
+
+[Service]
+Type=simple
+ExecStart=/usr/sbin/rozaneh client -c /etc/mahan-router/rozaneh/%i.json
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

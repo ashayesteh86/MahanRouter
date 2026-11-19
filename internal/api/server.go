@@ -55,6 +55,7 @@ func (s *Server) Routes() *http.ServeMux {
 	mux.HandleFunc("POST /api/v1/wireguard/keypair", s.wgKeypair)
 	mux.HandleFunc("POST /api/v1/wireguard/pubkey", s.wgPubkey)
 	mux.HandleFunc("GET /api/v1/wireguard/status", s.wgStatus)
+	mux.HandleFunc("GET /api/v1/rozaneh/status", s.rozanehStatus)
 	mux.HandleFunc("GET /api/v1/config/running", s.getRunning)
 	mux.HandleFunc("GET /api/v1/config/candidate", s.getCandidate)
 	mux.HandleFunc("PUT /api/v1/config/candidate", s.putCandidate)

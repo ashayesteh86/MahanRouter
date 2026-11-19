@@ -19,6 +19,7 @@ type Config struct {
 	Firewall       Firewall            `yaml:"firewall,omitempty" json:"firewall,omitempty"`
 	DHCPServers    []DHCPServer        `yaml:"dhcp_servers,omitempty" json:"dhcp_servers,omitempty"`
 	DNS            DNS                 `yaml:"dns,omitempty" json:"dns,omitempty"`
+	PolicyRoutes   []PolicyRoute       `yaml:"policy_routes,omitempty" json:"policy_routes,omitempty"`
 	NTP            NTP                 `yaml:"ntp,omitempty" json:"ntp,omitempty"`
 }
 
@@ -38,7 +39,11 @@ const (
 	IfBond      = "bond"
 	IfPPPoE     = "pppoe"
 	IfWireGuard = "wireguard"
-	IfLoopback  = "loopback"
+	// IfRozaneh is a Rozaneh (Veil) client tunnel to a server elsewhere.
+	IfRozaneh = "rozaneh"
+	// IfRozanehServer is a Rozaneh server on this router.
+	IfRozanehServer = "rozaneh_server"
+	IfLoopback      = "loopback"
 )
 
 // Addressing modes.
@@ -76,6 +81,10 @@ type Interface struct {
 
 	// WireGuard
 	WireGuard *WireGuard `yaml:"wireguard,omitempty" json:"wireguard,omitempty"`
+
+	// Rozaneh client / server tunnels.
+	Rozaneh       *RozanehClient `yaml:"rozaneh,omitempty" json:"rozaneh,omitempty"`
+	RozanehServer *RozanehServer `yaml:"rozaneh_server,omitempty" json:"rozaneh_server,omitempty"`
 
 	// Layer 3
 	Addressing string   `yaml:"addressing,omitempty" json:"addressing,omitempty"`
@@ -120,6 +129,88 @@ type WireGuardPeer struct {
 	// RouteAllowedIPs adds routes for AllowedIPs via this interface.
 	RouteAllowedIPs bool `yaml:"route_allowed_ips,omitempty" json:"route_allowed_ips,omitempty"`
 }
+
+// RozanehClient connects to a Rozaneh server. Link is the rozaneh://config/
+// link from that server's panel; it holds this device's private key.
+type RozanehClient struct {
+	Link string `yaml:"link" json:"link"`
+	// Method: auto (default), tunnel or dns.
+	Method string `yaml:"method,omitempty" json:"method,omitempty"`
+}
+
+// RozanehServer runs a Rozaneh server. The tunnel gateway address is the
+// interface's first address (e.g. 10.77.0.1/24).
+type RozanehServer struct {
+	// Domain must point at this router's public IP. The certificate comes
+	// from Let's Encrypt unless CertPEM/KeyPEM are given.
+	Domain    string `yaml:"domain" json:"domain"`
+	ACMEEmail string `yaml:"acme_email,omitempty" json:"acme_email,omitempty"`
+	CertPEM   string `yaml:"cert_pem,omitempty" json:"cert_pem,omitempty"`
+	KeyPEM    string `yaml:"key_pem,omitempty" json:"key_pem,omitempty"`
+	// PublicPort is what clients dial (443 by default; Let's Encrypt needs
+	// 443). The router redirects it from WAN to ListenPort, because the
+	// web panel holds 443 on the router itself.
+	PublicPort int    `yaml:"public_port,omitempty" json:"public_port,omitempty"`
+	ListenPort int    `yaml:"listen_port,omitempty" json:"listen_port,omitempty"`
+	Path       string `yaml:"path" json:"path"`
+	PrivateKey string `yaml:"private_key" json:"private_key"`
+	// CoverURL is the site shown to anyone without a key; empty = built in.
+	CoverURL     string        `yaml:"cover_url,omitempty" json:"cover_url,omitempty"`
+	CoverTraffic *bool         `yaml:"cover_traffic,omitempty" json:"cover_traffic,omitempty"`
+	ClientDNS    []string      `yaml:"client_dns,omitempty" json:"client_dns,omitempty"`
+	Peers        []RozanehPeer `yaml:"peers,omitempty" json:"peers,omitempty"`
+}
+
+// RozanehPeer is one authorized client device.
+type RozanehPeer struct {
+	Name      string `yaml:"name" json:"name"`
+	PublicKey string `yaml:"public_key" json:"public_key"`
+	IP        string `yaml:"ip" json:"ip"`
+	Disabled  bool   `yaml:"disabled,omitempty" json:"disabled,omitempty"`
+}
+
+// Rozaneh server port defaults.
+const (
+	RozanehPublicPort = 443
+	RozanehListenPort = 8443
+)
+
+// Ports returns the public and internal ports with defaults applied.
+func (r *RozanehServer) Ports() (public, listen int) {
+	public, listen = r.PublicPort, r.ListenPort
+	if public == 0 {
+		public = RozanehPublicPort
+	}
+	if listen == 0 {
+		listen = RozanehListenPort
+	}
+	return
+}
+
+// PolicyRoute sends traffic from the LAN (or chosen devices) out through a
+// tunnel interface instead of the main routing table.
+type PolicyRoute struct {
+	Interface string `yaml:"interface" json:"interface"`
+	Comment   string `yaml:"comment,omitempty" json:"comment,omitempty"`
+	Disabled  bool   `yaml:"disabled,omitempty" json:"disabled,omitempty"`
+	// From: "lan" (every LAN interface) or "devices" (Devices only).
+	From    string   `yaml:"from" json:"from"`
+	Devices []string `yaml:"devices,omitempty" json:"devices,omitempty"`
+	// ExceptIran keeps traffic to Iranian addresses on the normal route.
+	ExceptIran bool `yaml:"except_iran,omitempty" json:"except_iran,omitempty"`
+	// DNSViaTunnel sends the router's own DNS lookups through the tunnel,
+	// so a filtering network cannot answer them with fake addresses.
+	DNSViaTunnel bool `yaml:"dns_via_tunnel,omitempty" json:"dns_via_tunnel,omitempty"`
+	// BlockIfDown drops the traffic while the tunnel is down instead of
+	// sending it out the normal route.
+	BlockIfDown bool `yaml:"block_if_down,omitempty" json:"block_if_down,omitempty"`
+}
+
+// Policy route sources.
+const (
+	PolicyFromLAN     = "lan"
+	PolicyFromDevices = "devices"
+)
 
 // Shaping configures CAKE egress shaping on an interface.
 type Shaping struct {

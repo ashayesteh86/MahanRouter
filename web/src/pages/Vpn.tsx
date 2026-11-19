@@ -5,17 +5,18 @@ import { useConfig, usePoll } from "../store";
 import type { Config, Iface, Rule, WGPeer } from "../types";
 import { Check, Chip, ConfirmButton, Empty, Field, Icon, ListInput, Ltr, Modal, PageHead, Select, Tabs, TextInput, useToast } from "../ui";
 import { useLinks } from "./Dashboard";
+import RozanehTab from "./VpnRozaneh";
 
-// VPN page. WireGuard first; Rozaneh and V2Ray get their own tabs later.
+// VPN page: WireGuard and Rozaneh (VpnRozaneh.tsx); V2Ray gets its own tab later.
 
 interface PeerState { public_key: string; endpoint?: string; allowed_ips: string[]; last_handshake: number; rx_bytes: number; tx_bytes: number }
 interface IfState { name: string; public_key: string; listen_port: number; peers: PeerState[] }
 interface Keypair { private_key: string; public_key: string; preshared_key?: string }
 
 // ---- small IPv4 helpers -------------------------------------------------
-const ip2n = (ip: string) => ip.split(".").reduce((a, b) => a * 256 + Number(b), 0);
-const n2ip = (n: number) => [24, 16, 8, 0].map((s) => Math.floor(n / 2 ** s) % 256).join(".");
-function parseCidr(c: string): { ip: string; len: number; net: number; size: number } | null {
+export const ip2n = (ip: string) => ip.split(".").reduce((a, b) => a * 256 + Number(b), 0);
+export const n2ip = (n: number) => [24, 16, 8, 0].map((s) => Math.floor(n / 2 ** s) % 256).join(".");
+export function parseCidr(c: string): { ip: string; len: number; net: number; size: number } | null {
   const m = /^(\d{1,3}(?:\.\d{1,3}){3})\/(\d{1,2})$/.exec(c.trim());
   if (!m) return null;
   const len = Number(m[2]);
@@ -24,7 +25,7 @@ function parseCidr(c: string): { ip: string; len: number; net: number; size: num
   return { ip: m[1], len, net: Math.floor(ip2n(m[1]) / size) * size, size };
 }
 const network = (c: string) => { const p = parseCidr(c); return p ? `${n2ip(p.net)}/${p.len}` : ""; };
-function nextFree(serverCidr: string, used: string[]): string {
+export function nextFree(serverCidr: string, used: string[]): string {
   const p = parseCidr(serverCidr);
   if (!p) return "";
   const taken = new Set([ip2n(p.ip), ...used.map((u) => ip2n(u.split("/")[0]))]);
@@ -32,7 +33,7 @@ function nextFree(serverCidr: string, used: string[]): string {
   return "";
 }
 const fwComment = (name: string) => `WireGuard ${name}`;
-const ago = (now: number, ts: number) => {
+export const ago = (now: number, ts: number) => {
   if (!ts) return t("هرگز", "never");
   const s = Math.max(0, now - ts);
   if (s < 60) return t(`${s} ثانیه پیش`, `${s}s ago`);
@@ -40,15 +41,16 @@ const ago = (now: number, ts: number) => {
   if (s < 86400) return t(`${Math.floor(s / 3600)} ساعت پیش`, `${Math.floor(s / 3600)} h ago`);
   return t(`${Math.floor(s / 86400)} روز پیش`, `${Math.floor(s / 86400)} d ago`);
 };
-const keygen = (psk = false) => api<Keypair>(`/api/v1/wireguard/keypair${psk ? "?psk=1" : ""}`, { method: "POST" });
+export const keygen = (psk = false) => api<Keypair>(`/api/v1/wireguard/keypair${psk ? "?psk=1" : ""}`, { method: "POST" });
 
 export default function Vpn() {
   const [tab, setTab] = useState("wireguard");
   return (
     <div className="space-y-4">
       <PageHead title="VPN" sub={t("سرور و کلاینت VPN روی روتر", "VPN servers and clients on the router")} />
-      <Tabs value={tab} onChange={setTab} tabs={[{ id: "wireguard", label: "WireGuard", icon: "lock" }]} />
+      <Tabs value={tab} onChange={setTab} tabs={[{ id: "wireguard", label: "WireGuard", icon: "lock" }, { id: "rozaneh", label: t("روزنه", "Rozaneh"), icon: "shield" }]} />
       {tab === "wireguard" && <WireGuardTab />}
+      {tab === "rozaneh" && <RozanehTab />}
     </div>
   );
 }
@@ -73,7 +75,7 @@ function WireGuardTab() {
 }
 
 /** Public WAN address, used as the default endpoint for client configs. */
-function useWanIP(cfg: Config | null) {
+export function useWanIP(cfg: Config | null) {
   const { addrs } = useLinks(0);
   const wan = cfg?.interface_lists?.WAN || [];
   for (const w of wan) for (const a of addrs[w] || []) if (!a.includes(":")) return a.split("/")[0];
@@ -231,7 +233,7 @@ function ServerCard({ ifc, live, now }: { ifc: Iface; live?: IfState; now: numbe
   );
 }
 
-const Info = ({ label, children }: { label: string; children: React.ReactNode }) => (
+export const Info = ({ label, children }: { label: string; children: React.ReactNode }) => (
   <div><div className="text-xs text-ink-3">{label}</div><div>{children}</div></div>
 );
 
@@ -342,7 +344,7 @@ function NewClient({ ifc, serverPub, endpoint, onClose }: { ifc: Iface; serverPu
   );
 }
 
-function ClientResult({ name, file, conf, onClose }: { name: string; file: string; conf: string; onClose: () => void }) {
+export function ClientResult({ name, file, conf, onClose, steps }: { name: string; file: string; conf: string; onClose: () => void; steps?: React.ReactNode }) {
   const svg = useMemo(() => { const q = qrcode(0, "M"); q.addData(conf); q.make(); return q.createSvgTag({ cellSize: 4, margin: 4, scalable: true }); }, [conf]);
   const download = () => {
     const a = document.createElement("a");
@@ -358,10 +360,10 @@ function ClientResult({ name, file, conf, onClose }: { name: string; file: strin
         <div className="rounded-lg bg-white p-2" dangerouslySetInnerHTML={{ __html: svg }} />
         <div className="space-y-3">
           <div className="rounded-md bg-ring-soft p-3 text-sm text-ring">{t("کلید خصوصی این کلاینت فقط همین حالا نمایش داده می‌شود و روی روتر ذخیره نمی‌شود. اگر گم شد، کلاینت را حذف کنید و دوباره بسازید.", "This client's private key is shown only now and is not stored on the router. If it is lost, delete the client and create it again.")}</div>
-          <ol className="list-decimal space-y-1 ps-5 text-sm text-ink-2">
+          {steps || <ol className="list-decimal space-y-1 ps-5 text-sm text-ink-2">
             <li>{t("در گوشی برنامه‌ی WireGuard را نصب کنید و با «+» این QR را اسکن کنید (یا فایل را در ویندوز Import کنید).", "Install the WireGuard app and scan this QR with \"+\" (or import the file on Windows).")}</li>
             <li>{t("در صفحه‌ی «تغییرات» این تغییر را اعمال و تأیید کنید.", "Apply and confirm the change on the Changes page.")}</li>
-          </ol>
+          </ol>}
           <pre className="ltr mono max-h-64 overflow-auto rounded-md bg-surface-2 p-3 text-left text-xs">{conf}</pre>
         </div>
       </div>

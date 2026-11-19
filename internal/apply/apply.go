@@ -197,7 +197,17 @@ func (a *Applier) Apply(c *config.Config, b render.Bundle) (*Result, error) {
 		return res, nil
 	}
 	var errs []error
+	touched := map[string]bool{}
+	for _, p := range append(append([]string{}, res.Changed...), res.Removed...) {
+		touched[p] = true
+	}
 	for _, comp := range res.Components {
+		if comp == render.CompVPN {
+			if err := a.reloadVPN(c, touched); err != nil {
+				errs = append(errs, fmt.Errorf("%s: %w", comp, err))
+			}
+			continue
+		}
 		if err := a.reload(c, comp, changedNetdevs); err != nil {
 			errs = append(errs, fmt.Errorf("%s: %w", comp, err))
 		}
@@ -209,6 +219,8 @@ func componentOf(p string) string {
 	switch {
 	case strings.HasPrefix(p, render.NetworkDir), strings.HasPrefix(p, render.SecretsDir):
 		return render.CompNetwork
+	case strings.HasPrefix(p, render.RozanehDir):
+		return render.CompVPN
 	case strings.HasPrefix(p, "/etc/ppp"):
 		return render.CompPPP
 	case strings.HasPrefix(p, "/etc/nftables"):
@@ -282,6 +294,47 @@ func (a *Applier) reload(c *config.Config, comp string, netdevs []string) error 
 		return a.svc(true, "chrony.service")
 	}
 	return nil
+}
+
+// reloadVPN restarts the Rozaneh units whose files changed and stops those
+// whose interface is gone or disabled.
+func (a *Applier) reloadVPN(c *config.Config, touched map[string]bool) error {
+	var errs []error
+	want := map[string]bool{}
+	for i := range c.Interfaces {
+		ifc := &c.Interfaces[i]
+		if ifc.Type != config.IfRozaneh && ifc.Type != config.IfRozanehServer {
+			continue
+		}
+		unit := render.RozanehUnit(ifc)
+		if ifc.Disabled {
+			_ = a.svc(false, unit)
+			continue
+		}
+		want[unit] = true
+		changed := false
+		for p := range touched {
+			if strings.HasPrefix(p, render.RozanehDir+"/"+ifc.Name+".") {
+				changed = true
+			}
+		}
+		if changed {
+			errs = append(errs, a.svc(true, unit))
+		}
+	}
+	// Units of interfaces that no longer exist (or changed type).
+	for p := range touched {
+		if !strings.HasPrefix(p, render.RozanehDir+"/") || !strings.HasSuffix(p, ".json") {
+			continue
+		}
+		name := strings.TrimSuffix(filepath.Base(p), ".json")
+		for _, unit := range []string{render.RozanehClientUnit(name), render.RozanehServerUnit(name)} {
+			if !want[unit] {
+				_ = a.svc(false, unit)
+			}
+		}
+	}
+	return errors.Join(errs...)
 }
 
 func writeAtomic(path string, data []byte, mode os.FileMode) error {

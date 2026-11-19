@@ -59,6 +59,8 @@ func Nftables(c *config.Config) (string, error) {
 		}
 	}
 
+	nftPolicy(c, &w)
+
 	pol := func(p string) string {
 		if p == "" {
 			return config.ActAccept

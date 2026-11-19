@@ -55,11 +55,24 @@ func Validate(c *Config) error {
 	v.dhcp(names)
 	v.dns(names)
 	v.ntp()
+	v.policyRoutes(names)
+	servers := 0
+	for _, ifc := range c.Interfaces {
+		if ifc.Type == IfRozanehServer {
+			servers++
+		}
+	}
+	if servers > 1 {
+		v.add("interfaces: only one rozaneh_server is supported")
+	}
 	if len(v.errs) > 0 {
 		return &ValidationError{Problems: v.errs}
 	}
 	return nil
 }
+
+// isTunnel reports interface types created by a userspace VPN program.
+func isTunnel(t string) bool { return t == IfRozaneh || t == IfRozanehServer }
 
 func (v *validator) system() {
 	if v.c.Version != SchemaVersion {
@@ -168,13 +181,15 @@ func (v *validator) interfaces() map[string]*Interface {
 				}
 			}
 		case IfLoopback:
+		case IfRozaneh, IfRozanehServer:
+			v.rozaneh(p, ifc)
 		default:
 			v.add("%s: unknown type %q", p, ifc.Type)
 		}
 		switch ifc.Addressing {
 		case "", AddrNone, AddrDHCP:
-			if ifc.Addressing == AddrDHCP && ifc.Type == IfWireGuard {
-				v.add("%s: dhcp on wireguard is not possible", p)
+			if ifc.Addressing == AddrDHCP && (ifc.Type == IfWireGuard || isTunnel(ifc.Type)) {
+				v.add("%s: dhcp on %s is not possible", p, ifc.Type)
 			}
 		case AddrStatic:
 			if len(ifc.Addresses) == 0 {
@@ -206,7 +221,7 @@ func (v *validator) interfaces() map[string]*Interface {
 			case ifc.Parent == "":
 			case !ok:
 				v.add("%s: parent %q does not exist", p, ifc.Parent)
-			case par.Type == IfWireGuard || par.Type == IfPPPoE || par.Type == IfLoopback:
+			case par.Type == IfWireGuard || par.Type == IfPPPoE || par.Type == IfLoopback || isTunnel(par.Type):
 				v.add("%s: parent %q of type %s cannot carry %s", p, ifc.Parent, par.Type, ifc.Type)
 			}
 		}
@@ -226,7 +241,7 @@ func (v *validator) interfaces() map[string]*Interface {
 			if ifc.Type == IfBond && mi.Type != IfEthernet {
 				v.add("%s: bond member %q must be ethernet", p, m)
 			}
-			if mi.Type == IfWireGuard || mi.Type == IfPPPoE || mi.Type == IfLoopback {
+			if mi.Type == IfWireGuard || mi.Type == IfPPPoE || mi.Type == IfLoopback || isTunnel(mi.Type) {
 				v.add("%s: %s interface %q cannot be a member", p, mi.Type, m)
 			}
 			if len(mi.Addresses) > 0 || mi.Addressing == AddrDHCP {
