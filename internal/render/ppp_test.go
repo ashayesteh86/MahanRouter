@@ -95,6 +95,16 @@ func TestPPPRender(t *testing.T) {
 	}
 }
 
+func TestPPPDisabledChangesFile(t *testing.T) {
+	c := pppConfig(t)
+	on, _ := Render(c)
+	c.Interfaces[len(c.Interfaces)-3].Disabled = true // sstp-out1
+	off, _ := Render(c)
+	if on[PPPPeerFile("sstp-out1")].Content == off[PPPPeerFile("sstp-out1")].Content {
+		t.Error("disabling must change the peer file, or enabling again would not restart the unit")
+	}
+}
+
 func TestPPPValidate(t *testing.T) {
 	bad := []func(c *config.Config){
 		func(c *config.Config) { c.Interfaces[len(c.Interfaces)-4].PPP.Password = `a"b` },

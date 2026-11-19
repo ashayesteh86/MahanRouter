@@ -151,6 +151,10 @@ func pppClientOptions(ifc *config.Interface) string {
 		mtu = pppClientMTU
 	}
 	fmt.Fprintf(&w, "mtu %d\nmru %d\n", mtu, mtu)
+	if ifc.Disabled {
+		// Also makes enabling it again change the file, which restarts the unit.
+		w.WriteString("# interface disabled: unit is stopped\n")
+	}
 	return w.String()
 }
 
