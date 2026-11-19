@@ -272,5 +272,5 @@ Debian 12 packages:
 - `ppp`
 - `wireguard-tools`
 - `rozaneh` (from `../mahan-vpn`, not a Debian package)
-- `sing-box` 1.14.x (for V2Ray; not yet in the image)
+- `sing-box` 1.14.4 (for V2Ray; `make sing-box` fetches the pinned official release)
 - `git`
