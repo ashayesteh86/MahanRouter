@@ -20,7 +20,13 @@
 
 ## ۲. گرفتن فایل ISO
 
-روی Debian 12 یا Ubuntu 22.04 به بعد بسازید:
+**دانلود:** فایل `mahan-router-<version>-amd64.iso` را از [صفحه‌ی Releases](https://github.com/ashayesteh86/MahanRouter/releases/latest) بگیرید و با فایل `.sha256` کنارش بررسی کنید:
+
+```bash
+sha256sum -c mahan-router-0.3.0-amd64.iso.sha256
+```
+
+**یا خودتان بسازید** روی Debian 12 یا Ubuntu 22.04 به بعد:
 
 ```bash
 sudo apt install -y golang-go mmdebstrap squashfs-tools xorriso grub-common grub-pc-bin grub-efi-amd64-bin mtools dosfstools git curl make

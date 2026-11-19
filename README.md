@@ -6,6 +6,7 @@ config, Git history with commit-confirm, and a Persian/English web panel.
 
 ![Dashboard](docs/images/dashboard.png)
 
+**Download:** [latest ISO](https://github.com/ashayesteh86/MahanRouter/releases/latest) ·
 **Install it:** [docs/INSTALL.md](docs/INSTALL.md) (English) ·
 [docs/INSTALL.fa.md](docs/INSTALL.fa.md) (فارسی)
 

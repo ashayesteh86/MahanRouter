@@ -41,7 +41,15 @@ ARM and MIPS builds of the agent exist, but there is no image for them yet.
 
 ## 2. Get the ISO
 
-Build it on a Debian 12 or Ubuntu 22.04+ machine:
+**Download** it from the [Releases page](https://github.com/ashayesteh86/MahanRouter/releases/latest)
+(`mahan-router-<version>-amd64.iso`). Check it against the `.sha256` file
+next to it:
+
+```bash
+sha256sum -c mahan-router-0.3.0-amd64.iso.sha256
+```
+
+**Or build it yourself** on a Debian 12 or Ubuntu 22.04+ machine:
 
 ```bash
 sudo apt install -y golang-go mmdebstrap squashfs-tools xorriso grub-common grub-pc-bin grub-efi-amd64-bin mtools dosfstools git curl make
