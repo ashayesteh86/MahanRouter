@@ -188,6 +188,38 @@ built from `../mahan-vpn` by `make rozaneh` and installed as `/usr/sbin/rozaneh`
     `fwmark X lookup 1000+i`, where the tunnel's `.network` file puts its
     default route. Specific routes (LAN, static, site-to-site) still win.
 
+## VPN: V2Ray
+
+[sing-box](https://github.com/SagerNet/sing-box) (`/usr/sbin/sing-box`)
+runs both sides. Configs go to `/etc/mahan-router/v2ray/`. They are checked
+with `sing-box check` before apply, when the binary is installed.
+
+- **Client** (`type: v2ray`, e.g. `v2r1`, unit `mahan-v2ray-client@<name>`):
+  - `v2ray.link` is a share link: `vless://` (TLS or Reality), `vmess://`,
+    `trojan://`, `ss://` (SIP002, including 2022 ciphers) or `hysteria2://`.
+  - Transports: tcp, ws (including `?ed=` early data), grpc, httpupgrade, h2.
+    XHTTP is not supported.
+  - sing-box makes a TUN interface (`auto_route: false`, gvisor stack,
+    172.19.N.1/30). The router routes into it with the same `policy_routes`
+    as Rozaneh.
+  - sing-box resolves server names with 1.1.1.1 directly, not with Unbound,
+    so DNS-via-tunnel cannot loop.
+- **Server** (top-level `v2ray_server`, unit `mahan-v2ray-server`):
+  - Protocol is VLESS + Reality with xtls-rprx-vision (no domain or
+    certificate; the TLS handshake of `reality_target`, default
+    www.microsoft.com:443, is borrowed) or Shadowsocks 2022
+    (2022-blake3-aes-128-gcm, multi-user).
+  - It listens on 8444. The panel adds a WAN redirect from `public_port`
+    (default 443) and an input accept rule. The public port must differ from
+    the Rozaneh server's.
+  - Unless `allow_lan` is set, clients cannot reach private addresses (the
+    LAN and the router).
+  - User secrets stay in the config, so the panel can show a user's link and
+    QR again at any time.
+- DNS via the tunnel uses its own mark and table (0x20000+i, table 2000+i),
+  which has no kill-switch route. DNS keeps working while a tunnel is down,
+  so the tunnel program can resolve its server and reconnect.
+
 ## CLI
 
 ```bash
@@ -220,6 +252,7 @@ mrctl render my.yaml --out /tmp/preview   # offline: see the generated files
 | GET | `/api/v1/firewall/counters` | packets/bytes per rule tag |
 | POST | `/api/v1/wireguard/keypair`, `/api/v1/wireguard/pubkey` | X25519 keys (also used for Rozaneh) |
 | GET | `/api/v1/wireguard/status` | `wg show all dump`, parsed |
+| GET | `/api/v1/v2ray/status` | client tunnels and server unit state, log |
 | GET | `/api/v1/rozaneh/status` | unit state, tunnel address, traffic, log, server peers |
 
 The Unix socket needs no token, because it is root-only. The TCP listener
@@ -239,4 +272,5 @@ Debian 12 packages:
 - `ppp`
 - `wireguard-tools`
 - `rozaneh` (from `../mahan-vpn`, not a Debian package)
+- `sing-box` 1.14.x (for V2Ray; not yet in the image)
 - `git`

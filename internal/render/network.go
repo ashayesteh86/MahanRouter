@@ -105,7 +105,7 @@ func renderNetwork(c *config.Config, b Bundle) error {
 		if ifc.Comment != "" {
 			w.kv("Description", ifc.Comment)
 		}
-		if ifc.Type == config.IfPPPoE || ifc.Type == config.IfRozaneh || ifc.Type == config.IfRozanehServer {
+		if ifc.Type == config.IfPPPoE || ifc.Type == config.IfRozaneh || ifc.Type == config.IfRozanehServer || ifc.Type == config.IfV2Ray {
 			// pppd / rozaneh own the addresses; networkd only shapes and
 			// routes, and keeps its hands off.
 			w.kv("KeepConfiguration", "yes")

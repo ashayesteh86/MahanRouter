@@ -9,7 +9,7 @@ import { ClientResult, Info, keygen, nextFree, parseCidr } from "./Vpn";
 // policy routing for the LAN) and as a Rozaneh server for phones/laptops.
 
 interface PeerLive { name: string; public_key: string; ip: string; down_bytes: number; up_bytes: number; last_seen?: string; sessions: number }
-interface RzLive { name: string; type: string; unit: string; active: string; up: boolean; addresses: string[]; rx_bytes: number; tx_bytes: number; log: string[]; peers?: PeerLive[] }
+export interface RzLive { name: string; type: string; unit: string; active: string; up: boolean; addresses: string[]; rx_bytes: number; tx_bytes: number; log: string[]; peers?: PeerLive[] }
 interface Lease { address: string; mac: string; hostname: string }
 
 const fwComment = (name: string) => `Rozaneh ${name}`;
@@ -79,10 +79,10 @@ export default function RozanehTab() {
 
 // ---- routing choice (shared with V2Ray later) ----------------------------
 
-type Mode = "lan" | "devices" | "except_iran" | "none";
-interface Routing { mode: Mode; devices: string[]; dns: boolean; block: boolean }
+export type Mode = "lan" | "devices" | "except_iran" | "none";
+export interface Routing { mode: Mode; devices: string[]; dns: boolean; block: boolean }
 
-const routingOf = (p?: PolicyRoute): Routing => !p || p.disabled
+export const routingOf = (p?: PolicyRoute): Routing => !p || p.disabled
   ? { mode: "none", devices: p?.devices || [], dns: p?.dns_via_tunnel ?? true, block: !!p?.block_if_down }
   : { mode: p.from === "devices" ? "devices" : p.except_iran ? "except_iran" : "lan", devices: p.devices || [], dns: !!p.dns_via_tunnel, block: !!p.block_if_down };
 
@@ -193,7 +193,7 @@ function NewClient({ onClose }: { onClose: () => void }) {
   );
 }
 
-function liveChip(ifc: Iface, live?: RzLive) {
+export function liveChip(ifc: Iface, live?: RzLive) {
   if (ifc.disabled) return <Chip tone="talk">{t("غیرفعال", "disabled")}</Chip>;
   if (!live || !live.active || live.active === "inactive") return <Chip tone="off">{t("اعمال نشده", "not applied")}</Chip>;
   if (live.active === "failed") return <Chip tone="talk">{t("خطا", "failed")}</Chip>;
@@ -201,7 +201,7 @@ function liveChip(ifc: Iface, live?: RzLive) {
   return <Chip tone="ring">{t("در حال اتصال…", "connecting…")}</Chip>;
 }
 
-function LogView({ live }: { live?: RzLive }) {
+export function LogView({ live }: { live?: RzLive }) {
   const [open, setOpen] = useState(false);
   if (!live?.log?.length) return null;
   return (
@@ -279,7 +279,7 @@ function ClientSettings({ ifc, routing: initial, onClose }: { ifc: Iface; routin
   );
 }
 
-function removeIface(c: Config, name: string) {
+export function removeIface(c: Config, name: string) {
   c.interfaces = c.interfaces.filter((i) => i.name !== name);
   for (const k of Object.keys(c.interface_lists || {})) c.interface_lists![k] = c.interface_lists![k].filter((x) => x !== name);
   if (c.dns?.listen_on) c.dns.listen_on = c.dns.listen_on.filter((x) => x !== name);

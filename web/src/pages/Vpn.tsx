@@ -6,8 +6,9 @@ import type { Config, Iface, Rule, WGPeer } from "../types";
 import { Check, Chip, ConfirmButton, Empty, Field, Icon, ListInput, Ltr, Modal, PageHead, Select, Tabs, TextInput, useToast } from "../ui";
 import { useLinks } from "./Dashboard";
 import RozanehTab from "./VpnRozaneh";
+import V2RayTab from "./VpnV2Ray";
 
-// VPN page: WireGuard and Rozaneh (VpnRozaneh.tsx); V2Ray gets its own tab later.
+// VPN page: WireGuard here, Rozaneh in VpnRozaneh.tsx, V2Ray in VpnV2Ray.tsx.
 
 interface PeerState { public_key: string; endpoint?: string; allowed_ips: string[]; last_handshake: number; rx_bytes: number; tx_bytes: number }
 interface IfState { name: string; public_key: string; listen_port: number; peers: PeerState[] }
@@ -48,9 +49,10 @@ export default function Vpn() {
   return (
     <div className="space-y-4">
       <PageHead title="VPN" sub={t("سرور و کلاینت VPN روی روتر", "VPN servers and clients on the router")} />
-      <Tabs value={tab} onChange={setTab} tabs={[{ id: "wireguard", label: "WireGuard", icon: "lock" }, { id: "rozaneh", label: t("روزنه", "Rozaneh"), icon: "shield" }]} />
+      <Tabs value={tab} onChange={setTab} tabs={[{ id: "wireguard", label: "WireGuard", icon: "lock" }, { id: "rozaneh", label: t("روزنه", "Rozaneh"), icon: "shield" }, { id: "v2ray", label: "V2Ray", icon: "globe" }]} />
       {tab === "wireguard" && <WireGuardTab />}
       {tab === "rozaneh" && <RozanehTab />}
+      {tab === "v2ray" && <V2RayTab />}
     </div>
   );
 }

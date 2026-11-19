@@ -1,0 +1,14 @@
+[Unit]
+Description=Mahan Router V2Ray server (sing-box)
+After=network-online.target
+Wants=network-online.target
+ConditionPathExists=/etc/mahan-router/v2ray/server.json
+
+[Service]
+Type=simple
+ExecStart=/usr/sbin/sing-box run -c /etc/mahan-router/v2ray/server.json
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

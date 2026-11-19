@@ -20,6 +20,7 @@ type Config struct {
 	DHCPServers    []DHCPServer        `yaml:"dhcp_servers,omitempty" json:"dhcp_servers,omitempty"`
 	DNS            DNS                 `yaml:"dns,omitempty" json:"dns,omitempty"`
 	PolicyRoutes   []PolicyRoute       `yaml:"policy_routes,omitempty" json:"policy_routes,omitempty"`
+	V2RayServer    *V2RayServer        `yaml:"v2ray_server,omitempty" json:"v2ray_server,omitempty"`
 	NTP            NTP                 `yaml:"ntp,omitempty" json:"ntp,omitempty"`
 }
 
@@ -43,7 +44,9 @@ const (
 	IfRozaneh = "rozaneh"
 	// IfRozanehServer is a Rozaneh server on this router.
 	IfRozanehServer = "rozaneh_server"
-	IfLoopback      = "loopback"
+	// IfV2Ray is a V2Ray-family client tunnel (sing-box TUN).
+	IfV2Ray    = "v2ray"
+	IfLoopback = "loopback"
 )
 
 // Addressing modes.
@@ -85,6 +88,7 @@ type Interface struct {
 	// Rozaneh client / server tunnels.
 	Rozaneh       *RozanehClient `yaml:"rozaneh,omitempty" json:"rozaneh,omitempty"`
 	RozanehServer *RozanehServer `yaml:"rozaneh_server,omitempty" json:"rozaneh_server,omitempty"`
+	V2Ray         *V2RayClient   `yaml:"v2ray,omitempty" json:"v2ray,omitempty"`
 
 	// Layer 3
 	Addressing string   `yaml:"addressing,omitempty" json:"addressing,omitempty"`

@@ -12,6 +12,13 @@ export interface Config {
   dns?: DNS;
   ntp?: { servers?: string[]; serve_to?: string[] };
   policy_routes?: PolicyRoute[];
+  v2ray_server?: V2RayServer;
+}
+
+export interface V2RayUser { name: string; secret: string; disabled?: boolean }
+export interface V2RayServer {
+  disabled?: boolean; protocol?: "vless_reality" | "shadowsocks"; public_port?: number; listen_port?: number; address?: string;
+  reality_target?: string; reality_private_key?: string; reality_short_id?: string; ss_key?: string; allow_lan?: boolean; users?: V2RayUser[];
 }
 
 export interface PolicyRoute {
@@ -29,7 +36,7 @@ export interface RozanehServer {
 
 export interface Iface {
   name: string;
-  type: "ethernet" | "vlan" | "bridge" | "bond" | "pppoe" | "wireguard" | "loopback" | "rozaneh" | "rozaneh_server";
+  type: "ethernet" | "vlan" | "bridge" | "bond" | "pppoe" | "wireguard" | "loopback" | "rozaneh" | "rozaneh_server" | "v2ray";
   comment?: string;
   disabled?: boolean;
   mtu?: number;
@@ -43,6 +50,7 @@ export interface Iface {
   pppoe?: { username: string; password: string; service_name?: string; add_default_route?: boolean; use_peer_dns?: boolean };
   rozaneh?: { link: string; method?: "auto" | "tunnel" | "dns" };
   rozaneh_server?: RozanehServer;
+  v2ray?: { link: string };
   wireguard?: { private_key: string; listen_port?: number; client_endpoint?: string; client_dns?: string; peers?: WGPeer[] };
   addressing?: "static" | "dhcp" | "none";
   addresses?: string[];

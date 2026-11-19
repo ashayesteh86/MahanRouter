@@ -108,3 +108,54 @@ func TestIranList(t *testing.T) {
 		t.Fatalf("only %d prefixes", len(l))
 	}
 }
+
+func TestV2RayRender(t *testing.T) {
+	c := vpnConfig(t)
+	pbk := "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+	c.Interfaces = append(c.Interfaces, config.Interface{Name: "v2r1", Type: config.IfV2Ray, V2Ray: &config.V2RayClient{
+		Link: "vless://bf000d23-0752-40b4-affe-68f7707a9661@203.0.113.5:443?security=reality&sni=www.microsoft.com&pbk=" + pbk + "&sid=ab&flow=xtls-rprx-vision"}})
+	c.InterfaceLists["WAN"] = append(c.InterfaceLists["WAN"], "v2r1")
+	c.PolicyRoutes = append(c.PolicyRoutes, config.PolicyRoute{Interface: "v2r1", From: config.PolicyFromDevices, Devices: []string{"192.168.88.20"}, DNSViaTunnel: true})
+	c.V2RayServer = &config.V2RayServer{PublicPort: 2053, RealityPrivateKey: pbk, RealityShortID: "0123abcd", Users: []config.V2RayUser{
+		{Name: "phone", Secret: "bf000d23-0752-40b4-affe-68f7707a9661"}, {Name: "old", Secret: "bf000d23-0752-40b4-affe-68f7707a9662", Disabled: true}}}
+	if err := config.Validate(c); err != nil {
+		t.Fatal(err)
+	}
+	b, err := Render(c)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cl := b[V2RayConfPath("v2r1")].Content
+	for _, w := range []string{`"interface_name": "v2r1"`, `"auto_route": false`, `"final": "proxy"`, `"default_domain_resolver": "bootstrap"`, `"172.19.1.1/30"`} {
+		if !strings.Contains(cl, w) {
+			t.Errorf("client conf lacks %s:\n%s", w, cl)
+		}
+	}
+	sv := b[V2RayServerConf].Content
+	for _, w := range []string{`"listen_port": 8444`, `"server": "www.microsoft.com"`, `"server_port": 443`, `"ip_is_private": true`, `"flow": "xtls-rprx-vision"`} {
+		if !strings.Contains(sv, w) {
+			t.Errorf("server conf lacks %s:\n%s", w, sv)
+		}
+	}
+	if strings.Contains(sv, `"old"`) {
+		t.Error("disabled user rendered")
+	}
+	lo := b[networkPath("lo-routes")].Content
+	if !strings.Contains(lo, "FirewallMark=0x20001") || !strings.Contains(lo, "Table=2001") {
+		t.Errorf("dns table rule missing:\n%s", lo)
+	}
+	if !strings.Contains(b[networkPath("v2r1")].Content, "Table=2001") {
+		t.Error("tunnel lacks dns table route")
+	}
+	nft := b[NftablesFile].Content
+	if !strings.Contains(nft, "meta mark set 0x20001") || !strings.Contains(nft, "ip saddr { 192.168.88.20 }") {
+		t.Error("nft policy for v2r1 missing")
+	}
+	checkTool(t, "nft", "-c", "-f", writeTemp(t, nft))
+
+	c.V2RayServer.PublicPort = 0
+	c.Interfaces[len(c.Interfaces)-2].RozanehServer.PublicPort = 0 // both on 443
+	if err := config.Validate(c); err == nil || !strings.Contains(err.Error(), "already used by the Rozaneh server") {
+		t.Errorf("port clash not caught: %v", err)
+	}
+}

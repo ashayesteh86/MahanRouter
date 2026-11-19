@@ -153,6 +153,12 @@ var privateV4 = []string{"0.0.0.0/8", "10.0.0.0/8", "100.64.0.0/10", "127.0.0.0/
 func PolicyTable(i int) int { return 1000 + i }
 func PolicyMark(i int) int  { return 0x10000 + i }
 
+// PolicyDNSTable and PolicyDNSMark carry the router's own DNS through the
+// tunnel. They have no kill switch: while the tunnel is down, DNS must still
+// work so the tunnel program can resolve its server and reconnect.
+func PolicyDNSTable(i int) int { return 2000 + i }
+func PolicyDNSMark(i int) int  { return 0x20000 + i }
+
 // activePolicies returns enabled policy routes with their index.
 func activePolicies(c *config.Config) map[int]config.PolicyRoute {
 	out := map[int]config.PolicyRoute{}
@@ -170,10 +176,12 @@ func policyRoutesFor(c *config.Config, ifc string, w *ini) {
 		if r.Disabled || r.Interface != ifc {
 			continue
 		}
-		w.section("Route")
-		w.kv("Destination", "0.0.0.0/0")
-		w.kv("Table", PolicyTable(i))
-		w.kv("Scope", "link")
+		for _, table := range []int{PolicyTable(i), PolicyDNSTable(i)} {
+			w.section("Route")
+			w.kv("Destination", "0.0.0.0/0")
+			w.kv("Table", table)
+			w.kv("Scope", "link")
+		}
 	}
 }
 
@@ -198,6 +206,12 @@ func policyLo(c *config.Config, w *ini) bool {
 		w.kv("FirewallMark", mark)
 		w.kv("Table", PolicyTable(i))
 		w.kv("Priority", 10001+2*i)
+		if r.DNSViaTunnel {
+			w.section("RoutingPolicyRule")
+			w.kv("FirewallMark", fmt.Sprintf("0x%x", PolicyDNSMark(i)))
+			w.kv("Table", PolicyDNSTable(i))
+			w.kv("Priority", 10500+i)
+		}
 		if r.BlockIfDown {
 			w.section("Route")
 			w.kv("Destination", "0.0.0.0/0")
@@ -247,8 +261,8 @@ func nftPolicy(c *config.Config, w *strings.Builder) {
 		mark := fmt.Sprintf("meta mark set 0x%x", PolicyMark(i))
 		pre = append(pre, strings.Join(m, " ")+" "+mark+" comment "+quote("policy "+r.Interface))
 		if r.DNSViaTunnel {
-			out = append(out, fmt.Sprintf("meta skuid %s meta mark 0 meta l4proto { tcp, udp } th dport 53 ip daddr != @pr_private_v4 %s comment %s",
-				quote("unbound"), mark, quote("dns via "+r.Interface)))
+			out = append(out, fmt.Sprintf("meta skuid %s meta mark 0 meta l4proto { tcp, udp } th dport 53 ip daddr != @pr_private_v4 meta mark set 0x%x comment %s",
+				quote("unbound"), PolicyDNSMark(i), quote("dns via "+r.Interface)))
 		}
 	}
 	w.WriteString("\tchain policy_pre {\n\t\ttype filter hook prerouting priority mangle; policy accept;\n")

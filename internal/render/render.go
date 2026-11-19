@@ -98,6 +98,9 @@ func Render(c *config.Config) (Bundle, error) {
 	if err := renderRozaneh(c, b); err != nil {
 		return nil, err
 	}
+	if err := renderV2Ray(c, b); err != nil {
+		return nil, err
+	}
 	renderPPP(c, b)
 	renderFRR(c, b)
 	if err := renderKea(c, b); err != nil {

@@ -58,20 +58,54 @@ func (s *Server) rozanehStatus(w http.ResponseWriter, r *http.Request) {
 }
 
 func rozanehState(ctx context.Context, ifc *config.Interface) RozanehState {
-	st := RozanehState{Name: ifc.Name, Type: ifc.Type, Unit: render.RozanehUnit(ifc), Addresses: []string{}, Log: []string{}}
+	st := tunnelState(ctx, ifc.Name, ifc.Type, render.RozanehUnit(ifc))
+	if ifc.Type == config.IfRozanehServer {
+		var state struct {
+			Peers []RozanehPeerState `json:"peers"`
+		}
+		if b, err := os.ReadFile(filepath.Join(render.RozanehStateDir, ifc.Name, "state.json")); err == nil && json.Unmarshal(b, &state) == nil {
+			st.Peers = state.Peers
+		}
+	}
+	return st
+}
+
+func (s *Server) v2rayStatus(w http.ResponseWriter, r *http.Request) {
+	out := []RozanehState{}
+	var server *RozanehState
+	data, err := s.Agent.Store.Running()
+	if err == nil {
+		if c, err := config.Parse(data); err == nil {
+			for i := range c.Interfaces {
+				if ifc := &c.Interfaces[i]; ifc.Type == config.IfV2Ray {
+					out = append(out, tunnelState(r.Context(), ifc.Name, ifc.Type, render.V2RayClientUnit(ifc.Name)))
+				}
+			}
+			if c.V2RayServer != nil {
+				st := tunnelState(r.Context(), "", "v2ray_server", render.V2RayServerUnit)
+				server = &st
+			}
+		}
+	}
+	writeJSON(w, 200, map[string]any{"interfaces": out, "server": server, "now": time.Now().Unix()})
+}
+
+// tunnelState reads a VPN unit's state and, when name is set, its interface.
+func tunnelState(ctx context.Context, name, typ, unit string) RozanehState {
+	st := RozanehState{Name: name, Type: typ, Unit: unit, Addresses: []string{}, Log: []string{}}
 	ctx, cancel := context.WithTimeout(ctx, 4*time.Second)
 	defer cancel()
 	if b, err := exec.CommandContext(ctx, "systemctl", "show", "-P", "ActiveState", st.Unit).Output(); err == nil {
 		st.Active = strings.TrimSpace(string(b))
 	}
-	sys := filepath.Join("/sys/class/net", ifc.Name, "statistics")
-	if b, err := os.ReadFile(filepath.Join(sys, "rx_bytes")); err == nil {
+	sys := filepath.Join("/sys/class/net", name, "statistics")
+	if b, err := os.ReadFile(filepath.Join(sys, "rx_bytes")); name != "" && err == nil {
 		st.Up = true
 		st.RxBytes, _ = strconv.ParseUint(strings.TrimSpace(string(b)), 10, 64)
 		b, _ = os.ReadFile(filepath.Join(sys, "tx_bytes"))
 		st.TxBytes, _ = strconv.ParseUint(strings.TrimSpace(string(b)), 10, 64)
 	}
-	if b, err := exec.CommandContext(ctx, "ip", "-j", "addr", "show", "dev", ifc.Name).Output(); err == nil {
+	if b, err := exec.CommandContext(ctx, "ip", "-j", "addr", "show", "dev", name).Output(); name != "" && err == nil {
 		var a []AddrJSON
 		if json.Unmarshal(b, &a) == nil {
 			for _, x := range a {
@@ -86,14 +120,6 @@ func rozanehState(ctx context.Context, ifc *config.Interface) RozanehState {
 			if l != "" {
 				st.Log = append(st.Log, l)
 			}
-		}
-	}
-	if ifc.Type == config.IfRozanehServer {
-		var state struct {
-			Peers []RozanehPeerState `json:"peers"`
-		}
-		if b, err := os.ReadFile(filepath.Join(render.RozanehStateDir, ifc.Name, "state.json")); err == nil && json.Unmarshal(b, &state) == nil {
-			st.Peers = state.Peers
 		}
 	}
 	return st

@@ -56,6 +56,7 @@ func Validate(c *Config) error {
 	v.dns(names)
 	v.ntp()
 	v.policyRoutes(names)
+	v.v2rayServer()
 	servers := 0
 	for _, ifc := range c.Interfaces {
 		if ifc.Type == IfRozanehServer {
@@ -72,7 +73,7 @@ func Validate(c *Config) error {
 }
 
 // isTunnel reports interface types created by a userspace VPN program.
-func isTunnel(t string) bool { return t == IfRozaneh || t == IfRozanehServer }
+func isTunnel(t string) bool { return t == IfRozaneh || t == IfRozanehServer || t == IfV2Ray }
 
 func (v *validator) system() {
 	if v.c.Version != SchemaVersion {
@@ -183,6 +184,8 @@ func (v *validator) interfaces() map[string]*Interface {
 		case IfLoopback:
 		case IfRozaneh, IfRozanehServer:
 			v.rozaneh(p, ifc)
+		case IfV2Ray:
+			v.v2rayClient(p, ifc)
 		default:
 			v.add("%s: unknown type %q", p, ifc.Type)
 		}

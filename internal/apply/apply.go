@@ -101,6 +101,20 @@ func (a *Applier) precheck(b render.Bundle) (warnings []string, err error) {
 		{render.FRRConf, "vtysh", func(f string) []string { return []string{"-C", "-f", f} }},
 	}
 	var errs []error
+	if _, err := exec.LookPath("sing-box"); err == nil {
+		for _, p := range b.Paths() {
+			if !strings.HasPrefix(p, render.V2RayDir+"/") {
+				continue
+			}
+			f := filepath.Join(tmp, filepath.Base(p))
+			if err := os.WriteFile(f, []byte(b[p].Content), 0o600); err != nil {
+				return nil, err
+			}
+			if out, err := exec.Command("sing-box", "check", "-c", f).CombinedOutput(); err != nil {
+				errs = append(errs, fmt.Errorf("sing-box rejected %s: %s", p, bytes.TrimSpace(out)))
+			}
+		}
+	}
 	for _, c := range checks {
 		f, ok := b[c.path]
 		if !ok {
@@ -219,7 +233,7 @@ func componentOf(p string) string {
 	switch {
 	case strings.HasPrefix(p, render.NetworkDir), strings.HasPrefix(p, render.SecretsDir):
 		return render.CompNetwork
-	case strings.HasPrefix(p, render.RozanehDir):
+	case strings.HasPrefix(p, render.RozanehDir), strings.HasPrefix(p, render.V2RayDir):
 		return render.CompVPN
 	case strings.HasPrefix(p, "/etc/ppp"):
 		return render.CompPPP
@@ -303,10 +317,15 @@ func (a *Applier) reloadVPN(c *config.Config, touched map[string]bool) error {
 	want := map[string]bool{}
 	for i := range c.Interfaces {
 		ifc := &c.Interfaces[i]
-		if ifc.Type != config.IfRozaneh && ifc.Type != config.IfRozanehServer {
+		var unit, prefix string
+		switch ifc.Type {
+		case config.IfRozaneh, config.IfRozanehServer:
+			unit, prefix = render.RozanehUnit(ifc), render.RozanehDir+"/"+ifc.Name+"."
+		case config.IfV2Ray:
+			unit, prefix = render.V2RayClientUnit(ifc.Name), render.V2RayDir+"/"+ifc.Name+"."
+		default:
 			continue
 		}
-		unit := render.RozanehUnit(ifc)
 		if ifc.Disabled {
 			_ = a.svc(false, unit)
 			continue
@@ -314,7 +333,7 @@ func (a *Applier) reloadVPN(c *config.Config, touched map[string]bool) error {
 		want[unit] = true
 		changed := false
 		for p := range touched {
-			if strings.HasPrefix(p, render.RozanehDir+"/"+ifc.Name+".") {
+			if strings.HasPrefix(p, prefix) {
 				changed = true
 			}
 		}
@@ -322,13 +341,25 @@ func (a *Applier) reloadVPN(c *config.Config, touched map[string]bool) error {
 			errs = append(errs, a.svc(true, unit))
 		}
 	}
+	srv := c.V2RayServer != nil && !c.V2RayServer.Disabled
+	if touched[render.V2RayServerConf] {
+		errs = append(errs, a.svc(srv, render.V2RayServerUnit))
+	}
+	want[render.V2RayServerUnit] = srv
 	// Units of interfaces that no longer exist (or changed type).
 	for p := range touched {
-		if !strings.HasPrefix(p, render.RozanehDir+"/") || !strings.HasSuffix(p, ".json") {
+		if !strings.HasSuffix(p, ".json") || p == render.V2RayServerConf {
 			continue
 		}
 		name := strings.TrimSuffix(filepath.Base(p), ".json")
-		for _, unit := range []string{render.RozanehClientUnit(name), render.RozanehServerUnit(name)} {
+		var units []string
+		switch {
+		case strings.HasPrefix(p, render.RozanehDir+"/"):
+			units = []string{render.RozanehClientUnit(name), render.RozanehServerUnit(name)}
+		case strings.HasPrefix(p, render.V2RayDir+"/"):
+			units = []string{render.V2RayClientUnit(name)}
+		}
+		for _, unit := range units {
 			if !want[unit] {
 				_ = a.svc(false, unit)
 			}
