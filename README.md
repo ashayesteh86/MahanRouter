@@ -1,20 +1,56 @@
 # Mahan Router
 
-A Linux-based router OS meant to replace MikroTik RouterOS on standard x86 and
-ARM hardware. The full design is in [docs/ARCHITECTURE.fa.md](docs/ARCHITECTURE.fa.md)
-(Persian). [docs/STATUS.md](docs/STATUS.md) lists what is built and what is still missing.
+A Linux-based router OS meant to replace MikroTik RouterOS on standard x86
+hardware and virtual machines. Debian 12 underneath, one declarative YAML
+config, Git history with commit-confirm, and a Persian/English web panel.
 
-> **Status:** phase 1 foundation. The core agent, the config model, the
-> renderers and the CLI pass an end-to-end lab test in network namespaces.
-> There is a bootable Debian 12 ISO (live + installer, BIOS + UEFI) that is
-> installs and boots on VMware. A web panel (HTTPS, Persian/English) is built
-> into the agent. There is no IPsec/OpenVPN or per-IP queues yet.
+![Dashboard](docs/images/dashboard.png)
+
+**Install it:** [docs/INSTALL.md](docs/INSTALL.md) (English) ·
+[docs/INSTALL.fa.md](docs/INSTALL.fa.md) (فارسی)
+
+## Features
+
+- **Interfaces:** Ethernet ports renamed to `ether1…` by MAC, VLAN, bridge,
+  bond, PPPoE client, loopback, CAKE shaping, and interface lists (`WAN`,
+  `LAN`) like RouterOS.
+- **Firewall and NAT:** nftables with RouterOS-style chains and matchers,
+  address lists (static and dynamic with timeout), port forwarding, and live
+  hit counters.
+- **Services:** DHCP server (Kea) with reservations, DNS cache (Unbound),
+  NTP (chrony), static routes, and OSPF/BGP (FRR).
+- **VPN:**
+  - WireGuard: server with QR client configs, site-to-site.
+  - Rozaneh: our own anti-DPI VPN, client and server.
+  - V2Ray via sing-box: VLESS/Reality, VMess, Trojan, Shadowsocks and
+    Hysteria2 client; VLESS-Reality or Shadowsocks-2022 server.
+- **Policy routing:** send all LAN traffic, chosen devices, or everything
+  except Iranian addresses through a tunnel, optionally with DNS through the
+  tunnel and a kill switch.
+- **Safe changes:** every change is a candidate until applied. Applying in
+  safe mode rolls back by itself unless confirmed. Every apply is a Git
+  revision you can diff and roll back.
+- **Web panel** (HTTPS, Persian and English), **CLI** (`mrctl`) and a
+  **REST API**.
+- **ISO** with an installer for BIOS and UEFI, VMware and QEMU guest tools.
+
+| | |
+|---|---|
+| ![Interfaces](docs/images/interfaces.png) | ![Firewall](docs/images/firewall.png) |
+| ![WireGuard](docs/images/vpn-wireguard.png) | ![V2Ray](docs/images/vpn-v2ray.png) |
+| ![Rozaneh](docs/images/vpn-rozaneh.png) | ![Changes](docs/images/changes.png) |
+
+> **Status:** early (0.3.0). The ISO is tested on VMware and in QEMU (BIOS and
+> UEFI), not yet on physical hardware. There is no IPsec/OpenVPN, no per-IP
+> queues and no A/B update yet. [docs/STATUS.md](docs/STATUS.md) lists what
+> is built and what is still missing. The design is in
+> [docs/ARCHITECTURE.fa.md](docs/ARCHITECTURE.fa.md) (Persian).
 
 ## How it works
 
 ```
              ┌──────────── management plane ────────────┐
-  mrctl ───► │ REST API (Unix socket, or TCP with token) │ ◄─── web panel (later)
+  mrctl ───► │ REST API (Unix socket, or TCP with token) │ ◄─── web panel
              └───────────────────┬──────────────────────┘
                                  │
              ┌─────────── control plane: mahan-agent ────────────┐
@@ -61,13 +97,15 @@ ARM hardware. The full design is in [docs/ARCHITECTURE.fa.md](docs/ARCHITECTURE.
 | `web/` | web panel source (React + TypeScript) |
 | `examples/` | `factory-default.yaml`, `branch-office.yaml` |
 | `tests/lab/` | network-namespace end-to-end test |
-| `packaging/systemd/` | `mahan-agent.service`, `mahan-pppoe@.service` |
+| `packaging/systemd/` | `mahan-agent.service`, `mahan-pppoe@.service`, Rozaneh and V2Ray units |
 | `image/` | ISO build (`build-iso.sh`), QEMU test (`test-vm.sh`), files baked into the image (`overlay/`) |
 
 ## Build and test
 
 ```bash
 make build      # bin/mahan-agent, bin/mrctl
+make sing-box   # bin/sing-box (pinned release, sha256-checked)
+make rozaneh    # bin/rozaneh, only if ../mahan-vpn exists
 make test       # unit tests; checks rendered files with nft/kea/unbound if installed
 make lab        # end-to-end test in network namespaces (root)
 make cross      # static binaries for amd64, arm64, arm, mips, mipsle
@@ -99,7 +137,8 @@ sudo image/test-vm.sh all   # QEMU: live boot, LAN client DHCP/DNS/NAT, auto-ins
 - Default login is `root` / `mahan`.
 - Out of the box, ether1 is the WAN (DHCP client) and the other ports are
   bridge-lan at 192.168.88.1/24 with DHCP, DNS and NAT.
-- Installation steps for VMware are in [docs/VMWARE.fa.md](docs/VMWARE.fa.md).
+- Installation steps are in [docs/INSTALL.md](docs/INSTALL.md) and
+  [docs/INSTALL.fa.md](docs/INSTALL.fa.md).
 
 ## Web panel
 
@@ -274,3 +313,8 @@ Debian 12 packages:
 - `rozaneh` (from `../mahan-vpn`, not a Debian package)
 - `sing-box` 1.14.4 (for V2Ray; `make sing-box` fetches the pinned official release)
 - `git`
+
+## License
+
+GPL-3.0. See [LICENSE](LICENSE). sing-box, Debian and the other bundled
+programs keep their own licenses.

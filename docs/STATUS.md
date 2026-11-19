@@ -1,4 +1,4 @@
-# Status (2026-11-16)
+# Status (2026-11-19, version 0.3.0)
 
 ## Built and tested
 
@@ -18,6 +18,10 @@
 | API/CLI | REST over Unix socket / TCP+token, `mrctl` | netns lab |
 | ISO | Debian 12 live + installer, BIOS + UEFI, open-vm-tools | QEMU (TCG): live boot, port rename to ether1/ether2 on e1000 + vmxnet3, WAN DHCP, Kea lease to a LAN client, NAT to the internet, Unbound; auto-install to disk, then boot from disk on BIOS and UEFI |
 | Web panel | HTTPS on the LAN with login, sessions and lockout; dashboard, interfaces, firewall/NAT, DHCP, DNS, static routes, tools, diff/apply (safe mode)/history/rollback, YAML editor, panel users; Persian + English | Go unit tests; headless Chromium against a local agent: login, add a dst-nat rule, apply with confirm, confirm, history |
+| VPN: WireGuard | Servers with QR client configs, site-to-site peers, live handshake/traffic | real router on VMware: client in a netns reached the LAN, DNS, panel and internet |
+| VPN: Rozaneh | Client from a `rozaneh://` link, server with Let's Encrypt or own certificate | real router: client to a lab server; server reached from a lab client (LAN, panel, DNS, internet). Let's Encrypt issuance not tested. |
+| VPN: V2Ray (sing-box 1.14.4) | Client from share links (vless/vmess/trojan/ss/hysteria2), server VLESS-Reality or Shadowsocks 2022 | real router: LAN device through a VLESS-Reality tunnel, DNS via tunnel, kill switch; lab client through the router's server |
+| Policy routing | All LAN / chosen devices / all except Iranian addresses through a tunnel; DNS via tunnel; kill switch | real router, see above |
 | Builds | static binaries for amd64/arm64/arm/mips/mipsle (~8 MB each) | built, not run on ARM/MIPS |
 
 ## Not built yet (phase 1 remainder)
@@ -27,6 +31,7 @@
 - Web panel: forms for OSPF/BGP, bond/bridge VLAN filtering and per-user roles (today every panel user has full access).
 - MikroTik-style interactive CLI (`/ip firewall filter add ...`) on top of the API.
 - IPsec (strongSwan), OpenVPN, L2TP.
+- VPN apps on real phones have not been tried against the router yet.
 - Per-IP "simple queues" (tc HTB/CAKE trees).
 - DHCPv6 / IPv6 RA on LAN; IPv6 BGP has been rendered but never tested.
 - Bridge VLAN filtering (trunk/access ports on one bridge).
