@@ -241,9 +241,10 @@ Interface lists work like RouterOS: firewall and NAT rules use **WAN** and
 
 ## 11. VPN
 
-The **VPN** page has three tabs. All three can work as a server (phones and
-laptops connect to the router) and as a client (the router connects to a
-server abroad and routes your LAN through it).
+The **VPN** page has five tabs. WireGuard, Rozaneh, V2Ray and SSTP / L2TP /
+PPTP can each work as a server (phones and laptops connect to the router) and
+as a client (the router connects to a server elsewhere and routes your LAN
+through it). L2TPv3 connects two routers at layer 2.
 
 > **If your router is behind another router or a modem,** forward the VPN
 > port from that device to the router's WAN address. Without it, server mode
@@ -314,9 +315,68 @@ supported yet.
   or Streisand. You can show a user's link again at any time.
 - Clients only get the internet unless you allow LAN access.
 
+### SSTP, L2TP and PPTP
+
+![SSTP / L2TP / PPTP](images/vpn-ppp.png)
+
+**Client** (like `sstp-client` and `l2tp-client` in MikroTik):
+1. **New connection** → pick the protocol, enter the server address, user
+   name and password.
+   - **SSTP** runs over TLS on port 443 and passes most firewalls. Write a
+     port other than 443 as `host:port`. Leave *Verify the server
+     certificate* off for servers with a self-signed certificate (MikroTik,
+     Windows).
+   - **L2TP/IPsec** needs the server's IPsec pre-shared key.
+   - **PPTP** is only for old servers: its encryption is broken.
+2. Choose what goes through the tunnel (see
+   [Choosing what goes through a tunnel](#choosing-what-goes-through-a-tunnel)),
+   then apply.
+
+**Server:** one server runs all three protocols with the same users.
+1. **Set up the server** → tick the protocols. SSTP and L2TP/IPsec are on by
+   default; PPTP is off.
+2. For SSTP, enter the address clients dial (a domain or the public IP).
+   The router makes a self-signed certificate, or you can paste your own.
+3. *Clients may reach the LAN and this router* is off by default: clients
+   then only get the internet. Turn it on for branch offices or working from
+   home.
+4. **New user** adds a user name and password, optionally with a fixed IP.
+5. Apply. The card then shows who is connected, from where, and their
+   traffic, with a **Disconnect** button.
+
+Connecting devices (also under *How to connect devices* in the panel):
+- **Windows:** Settings → Network → VPN → Add, type SSTP or *L2TP/IPsec with
+  pre-shared key*. For SSTP with the self-signed certificate, download it
+  with **SSTP certificate** and install it under *Local Machine → Trusted
+  Root Certification Authorities*. If Windows reports a revocation check
+  error, create the DWORD `NoCertRevocationCheck=1` in
+  `HKLM\SYSTEM\CurrentControlSet\Services\SstpSvc\Parameters`.
+- **iPhone and Mac:** VPN → Add → L2TP, with the IPsec key as the secret.
+- **Android:** recent versions have no built-in PPTP or L2TP. Use an SSTP
+  app, or WireGuard or Rozaneh.
+- **MikroTik:** `/interface sstp-client add connect-to=… user=… password=…`
+
+Ports opened from WAN: SSTP TCP 443, L2TP/IPsec UDP 500, 4500 and 1701 plus
+ESP, PPTP TCP 1723 plus GRE. Most modems cannot forward GRE and ESP, so
+behind a modem SSTP is the one that works.
+
+### L2TPv3
+
+An L2TPv3 tunnel is a virtual network cable between two routers, like EoIP
+in MikroTik. It is not encrypted; over the internet, run it inside WireGuard
+or IPsec.
+
+1. **New tunnel** → the other router's IP, UDP or IP encapsulation, and the
+   tunnel and session IDs. The other side uses the same IDs mirrored: its
+   tunnel ID is your peer tunnel ID. The dialog shows the values (and the
+   Linux `ip l2tp` commands) for the other side.
+2. Give the tunnel an IP address (e.g. `172.30.0.1/30`), or make it a member
+   of a bridge so both sites share one LAN. With a shared LAN, keep only one
+   DHCP server.
+
 ### Choosing what goes through a tunnel
 
-For Rozaneh, V2Ray and the routing of a client tunnel, you choose:
+For Rozaneh, V2Ray, SSTP, L2TP and PPTP client tunnels, you choose:
 
 | Option | Meaning |
 |---|---|

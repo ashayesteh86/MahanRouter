@@ -21,6 +21,8 @@
 | VPN: WireGuard | Servers with QR client configs, site-to-site peers, live handshake/traffic | real router on VMware: client in a netns reached the LAN, DNS, panel and internet |
 | VPN: Rozaneh | Client from a `rozaneh://` link, server with Let's Encrypt or own certificate | real router: client to a lab server; server reached from a lab client (LAN, panel, DNS, internet). Let's Encrypt issuance not tested. |
 | VPN: V2Ray (sing-box 1.14.4) | Client from share links (vless/vmess/trojan/ss/hysteria2), server VLESS-Reality or Shadowsocks 2022 | real router: LAN device through a VLESS-Reality tunnel, DNS via tunnel, kill switch; lab client through the router's server |
+| VPN: SSTP, L2TP/IPsec, PPTP (pppd, sstpc, xl2tpd, strongSwan; accel-ppp 1.15.0 server) | Clients routed by policy; one server for all three with shared users, sessions list and disconnect, self-signed SSTP certificate, internet-only or LAN access | lab with two routers in QEMU: all three clients against the router's own server in both directions (from LAN and WAN side), L2TP traffic seen only as ESP, LAN device through an SSTP tunnel, delete/disable/change; panel: client created and applied in headless Chromium. Not tried against Windows, iPhone or MikroTik. |
+| VPN: L2TPv3 | Static tunnel (UDP or IP encapsulation), IP address or bridge member | same lab: ping across, port change rebuilds the tunnel |
 | Policy routing | All LAN / chosen devices / all except Iranian addresses through a tunnel; DNS via tunnel; kill switch | real router, see above |
 | Builds | static binaries for amd64/arm64/arm/mips/mipsle (~8 MB each) | built, not run on ARM/MIPS |
 
@@ -30,8 +32,9 @@
 - A test on real hardware. The ISO installs and boots on the user's VMware (BIOS); UEFI is tested in QEMU only.
 - Web panel: forms for OSPF/BGP, bond/bridge VLAN filtering and per-user roles (today every panel user has full access).
 - MikroTik-style interactive CLI (`/ip firewall filter add ...`) on top of the API.
-- IPsec (strongSwan), OpenVPN, L2TP.
-- VPN apps on real phones have not been tried against the router yet.
+- IPsec beyond L2TP (IKEv2 road warrior, site-to-site), OpenVPN.
+- Let's Encrypt for the SSTP server (today: self-signed or your own certificate).
+- VPN apps on real phones, and Windows/iPhone/MikroTik built-in clients, have not been tried against the router yet.
 - Per-IP "simple queues" (tc HTB/CAKE trees).
 - DHCPv6 / IPv6 RA on LAN; IPv6 BGP has been rendered but never tested.
 - Bridge VLAN filtering (trunk/access ports on one bridge).

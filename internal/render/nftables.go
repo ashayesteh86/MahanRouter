@@ -80,6 +80,9 @@ func Nftables(c *config.Config) (string, error) {
 		if ch.name == "dstnat" || ch.name == "srcnat" {
 			rules, kind = fw.NAT, "n"
 		}
+		for _, l := range builtinRules(c, ch.name) {
+			fmt.Fprintf(&w, "\t\t%s\n", l)
+		}
 		for i, r := range rules {
 			if r.Chain != ch.name || r.Disabled {
 				continue
@@ -96,6 +99,66 @@ func Nftables(c *config.Config) (string, error) {
 	}
 	w.WriteString("}\n")
 	return w.String(), nil
+}
+
+// nftIfName turns the PPP server pseudo interface into a wildcard that
+// matches every session interface (ppps0, ppps1, ...).
+func nftIfName(n string) string {
+	if n == config.PPPServerIf {
+		return n + "*"
+	}
+	return n
+}
+
+// builtinRules come before the user's rules of a chain:
+//   - PPTP clients get their GRE packets: without the PPTP conntrack
+//     helper the replies do not match the outgoing call and look new.
+//   - An L2TP server with an IPsec secret takes L2TP only inside IPsec.
+//   - PPP server clients without LAN access stay on the internet only.
+func builtinRules(c *config.Config, chain string) []string {
+	var out []string
+	if chain == "input" {
+		for _, ifc := range c.Interfaces {
+			if ifc.Type == config.IfPPTP && !ifc.Disabled {
+				out = append(out, fmt.Sprintf("meta l4proto 47 counter accept comment %s", quote("pptp client GRE")))
+				break
+			}
+		}
+	}
+	s := c.PPPServer
+	if chain == "input" && s.L2TPOn() && s.L2TP.IPsecSecret != "" {
+		// With a secret set, plain L2TP (without IPsec) is refused.
+		out = append(out, fmt.Sprintf("udp dport 1701 meta ipsec missing counter drop comment %s", quote("l2tp server: only inside ipsec")))
+	}
+	if s == nil || s.AllowLAN {
+		return out
+	}
+	ppp := quote(config.PPPServerIf + "*")
+	only := quote("ppp server: internet only")
+	switch chain {
+	case "input":
+		out = append(out, fmt.Sprintf("iifname %s counter drop comment %s", ppp, only))
+	case "forward":
+		wan := c.InterfaceLists["WAN"]
+		if len(wan) == 0 {
+			return append(out, fmt.Sprintf("iifname %s counter drop comment %s", ppp, only))
+		}
+		q := make([]string, len(wan))
+		for i, m := range wan {
+			q[i] = quote(nftIfName(m))
+		}
+		out = append(out, fmt.Sprintf("iifname %s oifname != { %s } counter drop comment %s", ppp, strings.Join(q, ", "), only))
+	}
+	return out
+}
+
+// l4proto gives protocols without an nft keyword by number: the router
+// has no /etc/protocols to look names up in.
+func l4proto(p string) string {
+	if n, ok := map[string]string{"gre": "47", "esp": "50", "ah": "51", "ospf": "89", "sctp": "132"}[p]; ok {
+		return n
+	}
+	return p
 }
 
 func sortedKeys[V any](m map[string]V) []string {
@@ -174,7 +237,7 @@ func nftRuleFamily(c *config.Config, r config.Rule, tag, fam string) (string, er
 			return
 		}
 		n, ng := neg(name)
-		add("%s %s%s", key, op(ng), quote(n))
+		add("%s %s%s", key, op(ng), quote(nftIfName(n)))
 	}
 	listMatch := func(key, list string) {
 		if list == "" {
@@ -191,7 +254,7 @@ func nftRuleFamily(c *config.Config, r config.Rule, tag, fam string) (string, er
 		}
 		q := make([]string, len(members))
 		for i, mbr := range members {
-			q[i] = quote(mbr)
+			q[i] = quote(nftIfName(mbr))
 		}
 		add("%s %s{ %s }", key, op(ng), strings.Join(q, ", "))
 	}
@@ -227,7 +290,7 @@ func nftRuleFamily(c *config.Config, r config.Rule, tag, fam string) (string, er
 
 	if r.Protocol != "" {
 		if r.SrcPort == "" && r.DstPort == "" {
-			add("meta l4proto %s", r.Protocol)
+			add("meta l4proto %s", l4proto(r.Protocol))
 		}
 		ports := func(dir, p string) {
 			if p == "" {

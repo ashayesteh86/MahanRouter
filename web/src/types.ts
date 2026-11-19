@@ -13,6 +13,20 @@ export interface Config {
   ntp?: { servers?: string[]; serve_to?: string[] };
   policy_routes?: PolicyRoute[];
   v2ray_server?: V2RayServer;
+  ppp_server?: PPPServer;
+}
+
+export interface PPPUser { name: string; password: string; ip?: string; disabled?: boolean }
+export interface PPPServer {
+  disabled?: boolean; address: string; client_dns?: string[]; mtu?: number; allow_lan?: boolean;
+  pptp?: { enabled: boolean }; l2tp?: { enabled: boolean; ipsec_secret?: string };
+  sstp?: { enabled: boolean; public_port?: number; listen_port?: number; domain?: string; cert_pem: string; key_pem: string };
+  users?: PPPUser[];
+}
+export interface PPPClient { server: string; username: string; password: string; ipsec_secret?: string; verify_cert?: boolean }
+export interface L2TPv3 {
+  local?: string; remote: string; encapsulation?: "udp" | "ip"; port?: number;
+  tunnel_id: number; peer_tunnel_id: number; session_id: number; peer_session_id: number;
 }
 
 export interface V2RayUser { name: string; secret: string; disabled?: boolean }
@@ -36,7 +50,7 @@ export interface RozanehServer {
 
 export interface Iface {
   name: string;
-  type: "ethernet" | "vlan" | "bridge" | "bond" | "pppoe" | "wireguard" | "loopback" | "rozaneh" | "rozaneh_server" | "v2ray";
+  type: "ethernet" | "vlan" | "bridge" | "bond" | "pppoe" | "wireguard" | "loopback" | "rozaneh" | "rozaneh_server" | "v2ray" | "pptp" | "l2tp" | "sstp" | "l2tpv3";
   comment?: string;
   disabled?: boolean;
   mtu?: number;
@@ -51,6 +65,8 @@ export interface Iface {
   rozaneh?: { link: string; method?: "auto" | "tunnel" | "dns" };
   rozaneh_server?: RozanehServer;
   v2ray?: { link: string };
+  ppp?: PPPClient;
+  l2tpv3?: L2TPv3;
   wireguard?: { private_key: string; listen_port?: number; client_endpoint?: string; client_dns?: string; peers?: WGPeer[] };
   addressing?: "static" | "dhcp" | "none";
   addresses?: string[];

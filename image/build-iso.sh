@@ -21,6 +21,8 @@ PACKAGES=(
   linux-image-amd64 firmware-linux-free live-boot
   # router services
   nftables kea-dhcp4-server unbound dns-root-data chrony frr ppp wireguard-tools git
+  # PPTP / L2TP(/IPsec) / SSTP clients; accel-ppp (servers) is added below
+  pptp-linux sstp-client xl2tpd strongswan-swanctl charon-systemd libstrongswan-standard-plugins libpcre2-8-0 libssl3 netbase
   # tools
   tcpdump ethtool pciutils conntrack dnsutils mtr-tiny
   # hypervisor guest tools
@@ -30,7 +32,8 @@ PACKAGES=(
 )
 
 echo ">> building binaries ($VERSION)"
-make -C "$ROOT" build rozaneh sing-box VERSION="$VERSION" >/dev/null
+make -C "$ROOT" build rozaneh sing-box accel-ppp VERSION="$VERSION" >/dev/null
+ACCEL=$(ls "$ROOT"/dist/cache/accel-ppp-*-deb12-amd64.tar.gz)
 
 # Rozaneh is optional (its source is private); install it when it was built.
 ROZANEH_HOOK=()
@@ -44,6 +47,7 @@ mmdebstrap --variant=minbase --components=main,contrib,non-free-firmware \
   --customize-hook="cp -a '$ROOT/image/overlay/.' \"\$1/\"" \
   --customize-hook="install -m755 '$ROOT/bin/mahan-agent' '$ROOT/bin/mrctl' '$ROOT/bin/sing-box' \"\$1/usr/sbin/\"" \
   "${ROZANEH_HOOK[@]}" \
+  --customize-hook="tar -xzf '$ACCEL' -C \"\$1/\" --exclude=./etc --exclude=./usr/lib/systemd --exclude=./var" \
   --customize-hook="install -m644 '$ROOT/packaging/systemd/'*.service \"\$1/etc/systemd/system/\"" \
   --customize-hook="mkdir -p \"\$1/etc/mahan-router\" && echo '$VERSION' > \"\$1/etc/mahan-router/version\"" \
   --customize-hook="cp '$ROOT/image/configure-rootfs.sh' \"\$1/tmp/configure.sh\" && chroot \"\$1\" /bin/bash -e /tmp/configure.sh" \

@@ -1,7 +1,7 @@
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 LDFLAGS := -s -w -X main.version=$(VERSION)
 
-.PHONY: build rozaneh sing-box web test lab cross clean
+.PHONY: build rozaneh sing-box accel-ppp web test lab cross clean
 
 # The web panel is built into internal/panel/dist and embedded in mahan-agent.
 # The built files are committed, so `make build` works without Node.
@@ -27,6 +27,22 @@ bin/sing-box:
 	test -f dist/cache/$(SINGBOX_TGZ) || curl -fsSL -o dist/cache/$(SINGBOX_TGZ) https://github.com/SagerNet/sing-box/releases/download/v$(SINGBOX_VERSION)/$(SINGBOX_TGZ)
 	echo "$(SINGBOX_SHA256)  dist/cache/$(SINGBOX_TGZ)" | sha256sum -c -
 	tar -xzf dist/cache/$(SINGBOX_TGZ) -C bin --strip-components=1 sing-box-$(SINGBOX_VERSION)-linux-amd64/sing-box
+
+# accel-ppp runs the PPTP, L2TP and SSTP servers. It is not packaged for
+# Debian, so the pinned source release is built for Debian 12 in a
+# debian:12 container (needs Docker).
+ACCEL_VERSION := 1.15.0
+ACCEL_SHA256  := 408a7c02d25633ee2370887b67338c722858548d5431a7490c2af7774856e279
+ACCEL_SRC     := dist/cache/accel-ppp-$(ACCEL_VERSION).tar.gz
+ACCEL_OUT     := dist/cache/accel-ppp-$(ACCEL_VERSION)-deb12-amd64.tar.gz
+
+accel-ppp: $(ACCEL_OUT)
+
+$(ACCEL_OUT):
+	mkdir -p dist/cache
+	test -f $(ACCEL_SRC) || curl -fsSL -o $(ACCEL_SRC) https://github.com/accel-ppp/accel-ppp/archive/refs/tags/$(ACCEL_VERSION).tar.gz
+	echo "$(ACCEL_SHA256)  $(ACCEL_SRC)" | sha256sum -c -
+	packaging/accel-ppp/build.sh $(ACCEL_SRC) $(ACCEL_OUT)
 
 # Rozaneh's source is not public yet: without it the image is built without
 # /usr/sbin/rozaneh and the Rozaneh tab cannot start its tunnels.

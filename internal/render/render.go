@@ -24,10 +24,13 @@ const (
 	CompDNS      = "dns"
 	CompNTP      = "ntp"
 	CompVPN      = "vpn"
+	// CompIPsec is strongSwan (L2TP/IPsec), CompPPPServer is accel-ppp.
+	CompIPsec     = "ipsec"
+	CompPPPServer = "pppserver"
 )
 
 // Order is the apply order of components.
-var Order = []string{CompSystem, CompNetwork, CompFirewall, CompVPN, CompPPP, CompRouting, CompDHCP, CompDNS, CompNTP}
+var Order = []string{CompSystem, CompNetwork, CompFirewall, CompVPN, CompIPsec, CompPPP, CompPPPServer, CompRouting, CompDHCP, CompDNS, CompNTP}
 
 // File is one rendered file.
 type File struct {
@@ -102,6 +105,8 @@ func Render(c *config.Config) (Bundle, error) {
 		return nil, err
 	}
 	renderPPP(c, b)
+	renderIPsec(c, b)
+	renderPPPServer(c, b)
 	renderFRR(c, b)
 	if err := renderKea(c, b); err != nil {
 		return nil, err

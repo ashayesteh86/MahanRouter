@@ -21,6 +21,7 @@ type Config struct {
 	DNS            DNS                 `yaml:"dns,omitempty" json:"dns,omitempty"`
 	PolicyRoutes   []PolicyRoute       `yaml:"policy_routes,omitempty" json:"policy_routes,omitempty"`
 	V2RayServer    *V2RayServer        `yaml:"v2ray_server,omitempty" json:"v2ray_server,omitempty"`
+	PPPServer      *PPPServer          `yaml:"ppp_server,omitempty" json:"ppp_server,omitempty"`
 	NTP            NTP                 `yaml:"ntp,omitempty" json:"ntp,omitempty"`
 }
 
@@ -89,6 +90,10 @@ type Interface struct {
 	Rozaneh       *RozanehClient `yaml:"rozaneh,omitempty" json:"rozaneh,omitempty"`
 	RozanehServer *RozanehServer `yaml:"rozaneh_server,omitempty" json:"rozaneh_server,omitempty"`
 	V2Ray         *V2RayClient   `yaml:"v2ray,omitempty" json:"v2ray,omitempty"`
+
+	// PPTP / L2TP / SSTP client and static L2TPv3 tunnel.
+	PPP    *PPPClient `yaml:"ppp,omitempty" json:"ppp,omitempty"`
+	L2TPv3 *L2TPv3    `yaml:"l2tpv3,omitempty" json:"l2tpv3,omitempty"`
 
 	// Layer 3
 	Addressing string   `yaml:"addressing,omitempty" json:"addressing,omitempty"`

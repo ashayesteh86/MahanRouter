@@ -1,0 +1,16 @@
+[Unit]
+Description=Mahan Router PPTP / L2TP / SSTP server (accel-ppp)
+After=network-online.target systemd-networkd.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStartPre=-/sbin/modprobe -a pptp l2tp_ppp ppp_mppe
+ExecStart=/usr/sbin/accel-pppd -c /etc/accel-ppp/accel-ppp.conf
+ExecReload=/bin/kill -USR1 $MAINPID
+Restart=always
+RestartSec=5
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target

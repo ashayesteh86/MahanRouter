@@ -48,6 +48,10 @@ func Validate(c *Config) error {
 	v := &validator{c: c}
 	v.system()
 	names := v.interfaces()
+	if c.PPPServer != nil {
+		// PPP server sessions (ppps0, ppps1, ...) as one pseudo interface.
+		names[PPPServerIf] = &Interface{Name: PPPServerIf, Type: "ppp_server"}
+	}
 	v.interfaceLists(names)
 	v.routes(names)
 	v.routing()
@@ -57,6 +61,7 @@ func Validate(c *Config) error {
 	v.ntp()
 	v.policyRoutes(names)
 	v.v2rayServer()
+	v.pppChecks()
 	servers := 0
 	for _, ifc := range c.Interfaces {
 		if ifc.Type == IfRozanehServer {
@@ -73,7 +78,9 @@ func Validate(c *Config) error {
 }
 
 // isTunnel reports interface types created by a userspace VPN program.
-func isTunnel(t string) bool { return t == IfRozaneh || t == IfRozanehServer || t == IfV2Ray }
+func isTunnel(t string) bool {
+	return t == IfRozaneh || t == IfRozanehServer || t == IfV2Ray || IsPPPClient(t)
+}
 
 func (v *validator) system() {
 	if v.c.Version != SchemaVersion {
@@ -186,6 +193,10 @@ func (v *validator) interfaces() map[string]*Interface {
 			v.rozaneh(p, ifc)
 		case IfV2Ray:
 			v.v2rayClient(p, ifc)
+		case IfPPTP, IfL2TP, IfSSTP:
+			v.pppClient(p, ifc)
+		case IfL2TPv3:
+			v.l2tpv3(p, ifc)
 		default:
 			v.add("%s: unknown type %q", p, ifc.Type)
 		}

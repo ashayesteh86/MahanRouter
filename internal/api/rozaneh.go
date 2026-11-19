@@ -95,7 +95,7 @@ func tunnelState(ctx context.Context, name, typ, unit string) RozanehState {
 	st := RozanehState{Name: name, Type: typ, Unit: unit, Addresses: []string{}, Log: []string{}}
 	ctx, cancel := context.WithTimeout(ctx, 4*time.Second)
 	defer cancel()
-	if b, err := exec.CommandContext(ctx, "systemctl", "show", "-P", "ActiveState", st.Unit).Output(); err == nil {
+	if b, err := exec.CommandContext(ctx, "systemctl", "show", "-P", "ActiveState", st.Unit).Output(); st.Unit != "" && err == nil {
 		st.Active = strings.TrimSpace(string(b))
 	}
 	sys := filepath.Join("/sys/class/net", name, "statistics")
@@ -114,6 +114,9 @@ func tunnelState(ctx context.Context, name, typ, unit string) RozanehState {
 				}
 			}
 		}
+	}
+	if st.Unit == "" {
+		return st
 	}
 	if b, err := exec.CommandContext(ctx, "journalctl", "-u", st.Unit, "-n", "8", "-o", "short-iso", "--no-pager", "-q").Output(); err == nil {
 		for _, l := range strings.Split(strings.TrimSpace(string(b)), "\n") {

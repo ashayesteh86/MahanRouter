@@ -103,6 +103,12 @@ check_report() { # label
   expect_log "$1: ssh active"              '^ssh +active'             "$WORK/report-$1.txt"
   expect_log "$1: firewall table loaded"   'table inet mahan'          "$WORK/report-$1.txt"
   expect_log "$1: factory default commit"  'factory default'          "$WORK/report-$1.txt"
+  for b in accel-pppd sstpc pptp xl2tpd swanctl; do
+    expect_log "$1: $b present" "^$b +present" "$WORK/report-$1.txt"
+  done
+  expect_log "$1: accel-ppp runs"          '^accel-ppp [0-9]'          "$WORK/report-$1.txt"
+  expect_log "$1: no NetworkManager"       '^network-manager absent'   "$WORK/report-$1.txt"
+  expect_log "$1: xl2tpd off by default"   '^xl2tpd +inactive'         "$WORK/report-$1.txt"
   cp "$WORK/report-$1.txt" "$DIST/selftest-$1.txt"
 }
 

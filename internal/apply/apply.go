@@ -160,6 +160,9 @@ func (a *Applier) Apply(c *config.Config, b render.Bundle) (*Result, error) {
 	old := a.loadManifest()
 	changedComp := map[string]bool{}
 	var changedNetdevs []string
+	// oldNetdev keeps a replaced or removed netdev file's previous content:
+	// an L2TP tunnel is deleted by its tunnel ID, not by a link name.
+	oldNetdev := map[string]string{}
 	newM := manifest{}
 	for _, p := range b.Paths() {
 		f := b[p]
@@ -168,6 +171,9 @@ func (a *Applier) Apply(c *config.Config, b render.Bundle) (*Result, error) {
 		cur, err := os.ReadFile(a.full(p))
 		if err == nil && sum(string(cur)) == h {
 			continue
+		}
+		if err == nil && strings.HasSuffix(p, ".netdev") {
+			oldNetdev[p] = string(cur)
 		}
 		if err := writeAtomic(a.full(p), []byte(f.Content), os.FileMode(f.Mode)); err != nil {
 			return res, fmt.Errorf("write %s: %w", p, err)
@@ -188,6 +194,9 @@ func (a *Applier) Apply(c *config.Config, b render.Bundle) (*Result, error) {
 	for p := range old {
 		if _, still := newM[p]; still {
 			continue
+		}
+		if cur, err := os.ReadFile(a.full(p)); err == nil && strings.HasSuffix(p, ".netdev") {
+			oldNetdev[p] = string(cur)
 		}
 		if err := os.Remove(a.full(p)); err != nil && !os.IsNotExist(err) {
 			return res, fmt.Errorf("remove %s: %w", p, err)
@@ -216,13 +225,16 @@ func (a *Applier) Apply(c *config.Config, b render.Bundle) (*Result, error) {
 		touched[p] = true
 	}
 	for _, comp := range res.Components {
-		if comp == render.CompVPN {
-			if err := a.reloadVPN(c, touched); err != nil {
-				errs = append(errs, fmt.Errorf("%s: %w", comp, err))
-			}
-			continue
+		var err error
+		switch comp {
+		case render.CompVPN:
+			err = a.reloadVPN(c, touched)
+		case render.CompPPP:
+			err = a.reloadPPP(c, touched)
+		default:
+			err = a.reload(c, comp, changedNetdevs, oldNetdev)
 		}
-		if err := a.reload(c, comp, changedNetdevs); err != nil {
+		if err != nil {
 			errs = append(errs, fmt.Errorf("%s: %w", comp, err))
 		}
 	}
@@ -235,8 +247,12 @@ func componentOf(p string) string {
 		return render.CompNetwork
 	case strings.HasPrefix(p, render.RozanehDir), strings.HasPrefix(p, render.V2RayDir):
 		return render.CompVPN
-	case strings.HasPrefix(p, "/etc/ppp"):
+	case strings.HasPrefix(p, "/etc/ppp"), strings.HasPrefix(p, "/etc/xl2tpd"):
 		return render.CompPPP
+	case strings.HasPrefix(p, "/etc/swanctl"):
+		return render.CompIPsec
+	case strings.HasPrefix(p, render.AccelDir):
+		return render.CompPPPServer
 	case strings.HasPrefix(p, "/etc/nftables"):
 		return render.CompFirewall
 	case strings.HasPrefix(p, "/etc/frr"):
@@ -262,7 +278,7 @@ func (a *Applier) svc(enable bool, unit string) error {
 	return nil
 }
 
-func (a *Applier) reload(c *config.Config, comp string, netdevs []string) error {
+func (a *Applier) reload(c *config.Config, comp string, netdevs []string, oldNetdev map[string]string) error {
 	switch comp {
 	case render.CompSystem:
 		if err := a.run("hostname", c.System.Hostname); err != nil {
@@ -277,23 +293,39 @@ func (a *Applier) reload(c *config.Config, comp string, netdevs []string) error 
 	case render.CompNetwork:
 		// networkd does not change an existing netdev when its file
 		// changes; delete it so the reload recreates it.
+		restart := false
 		for _, p := range netdevs {
+			if id := l2tpTunnelID(oldNetdev[p]); id != "" {
+				// Deleting the tunnel deletes its session interface too.
+				// networkd does not notice a deleted L2TP tunnel, so it
+				// only creates it again after a restart.
+				_ = a.run("ip", "l2tp", "del", "tunnel", "tunnel_id", id)
+				restart = true
+				continue
+			}
 			name := strings.TrimSuffix(strings.TrimPrefix(filepath.Base(p), "20-mr-"), ".netdev")
 			_ = a.run("ip", "link", "delete", name)
 		}
 		_ = a.run("udevadm", "control", "--reload")
 		a.EnsureLinkNames(c)
+		if restart {
+			return a.run("systemctl", "restart", "systemd-networkd")
+		}
 		return a.run("networkctl", "reload")
 	case render.CompFirewall:
 		return a.run("nft", "-f", a.full(render.NftablesFile))
-	case render.CompPPP:
-		var errs []error
+	case render.CompIPsec:
+		on := false
 		for _, ifc := range c.Interfaces {
-			if ifc.Type == config.IfPPPoE {
-				errs = append(errs, a.svc(!ifc.Disabled, render.PPPoEUnit(ifc.Name)))
-			}
+			on = on || (ifc.Type == config.IfL2TP && ifc.PPP != nil && ifc.PPP.IPsecSecret != "" && !ifc.Disabled)
 		}
-		return errors.Join(errs...)
+		on = on || (c.PPPServer.L2TPOn() && c.PPPServer.L2TP.IPsecSecret != "")
+		// A restart, not swanctl --load-all: loading leaves the SAs of
+		// removed or changed connections up, and a new connection to the
+		// same peer then reuses the stale IKE SA.
+		return a.svc(on, render.IPsecUnit)
+	case render.CompPPPServer:
+		return a.svc(c.PPPServer.Running(), render.PPPServerUnit)
 	case render.CompRouting:
 		return a.svc(render.RoutingEnabled(c), "frr.service")
 	case render.CompDHCP:
@@ -308,6 +340,67 @@ func (a *Applier) reload(c *config.Config, comp string, netdevs []string) error 
 		return a.svc(true, "chrony.service")
 	}
 	return nil
+}
+
+// l2tpTunnelID returns TunnelId= of an L2TP netdev file, or "".
+func l2tpTunnelID(netdev string) string {
+	if !strings.Contains(netdev, "Kind=l2tp") {
+		return ""
+	}
+	for _, l := range strings.Split(netdev, "\n") {
+		if v, ok := strings.CutPrefix(l, "TunnelId="); ok {
+			return strings.TrimSpace(v)
+		}
+	}
+	return ""
+}
+
+// reloadPPP restarts the pppd units (PPPoE, PPTP, SSTP) and xl2tpd (L2TP)
+// whose files or secrets changed, and stops those of removed interfaces.
+func (a *Applier) reloadPPP(c *config.Config, touched map[string]bool) error {
+	var errs []error
+	secrets := touched["/etc/ppp/chap-secrets"]
+	l2tpOn, l2tpChanged := false, secrets || touched[render.XL2TPDConf]
+	want := map[string]bool{}
+	for _, ifc := range c.Interfaces {
+		var unit string
+		switch {
+		case ifc.Type == config.IfPPPoE:
+			unit = render.PPPoEUnit(ifc.Name)
+		case ifc.Type == config.IfPPTP || ifc.Type == config.IfSSTP:
+			unit = render.PPPClientUnit(ifc.Name)
+		case ifc.Type == config.IfL2TP:
+			l2tpOn = l2tpOn || !ifc.Disabled
+			l2tpChanged = l2tpChanged || touched[render.L2TPOptionsFile(ifc.Name)]
+			continue
+		default:
+			continue
+		}
+		if ifc.Disabled {
+			_ = a.svc(false, unit)
+			continue
+		}
+		want[unit] = true
+		if secrets || touched[render.PPPPeerFile(ifc.Name)] {
+			errs = append(errs, a.svc(true, unit))
+		}
+	}
+	for p := range touched {
+		if strings.HasSuffix(p, ".l2tp") {
+			l2tpChanged = true
+		}
+		if name, ok := strings.CutPrefix(p, render.PPPPeerFile("")); ok {
+			for _, unit := range []string{render.PPPoEUnit(name), render.PPPClientUnit(name)} {
+				if !want[unit] {
+					_ = a.svc(false, unit)
+				}
+			}
+		}
+	}
+	if l2tpChanged {
+		errs = append(errs, a.svc(l2tpOn, render.XL2TPDUnit))
+	}
+	return errors.Join(errs...)
 }
 
 // reloadVPN restarts the Rozaneh units whose files changed and stops those

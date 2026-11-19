@@ -1,0 +1,15 @@
+[Unit]
+Description=Mahan Router PPP client %i (PPTP / SSTP)
+After=network-online.target systemd-networkd.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStartPre=/bin/mkdir -p /run/sstpc
+ExecStart=/usr/sbin/pppd call mr-%i nodetach
+Restart=always
+RestartSec=10
+SuccessExitStatus=5
+
+[Install]
+WantedBy=multi-user.target

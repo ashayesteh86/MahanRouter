@@ -105,13 +105,13 @@ func renderNetwork(c *config.Config, b Bundle) error {
 		if ifc.Comment != "" {
 			w.kv("Description", ifc.Comment)
 		}
-		if ifc.Type == config.IfPPPoE || ifc.Type == config.IfRozaneh || ifc.Type == config.IfRozanehServer || ifc.Type == config.IfV2Ray {
+		if ifc.Type == config.IfPPPoE || ifc.Type == config.IfRozaneh || ifc.Type == config.IfRozanehServer || ifc.Type == config.IfV2Ray || config.IsPPPClient(ifc.Type) {
 			// pppd / rozaneh own the addresses; networkd only shapes and
 			// routes, and keeps its hands off.
 			w.kv("KeepConfiguration", "yes")
 			w.kv("LinkLocalAddressing", "no")
 			w.kv("IPv6AcceptRA", "no")
-			if ifc.Type != config.IfPPPoE {
+			if ifc.Type != config.IfPPPoE && !config.IsPPPClient(ifc.Type) {
 				w.kv("ConfigureWithoutCarrier", "yes")
 			}
 		} else {
@@ -208,6 +208,12 @@ func bridgeMAC(c *config.Config, br *config.Interface) string {
 }
 
 func renderNetdev(c *config.Config, ifc *config.Interface, b Bundle) error {
+	if ifc.Type == config.IfL2TPv3 {
+		if ifc.L2TPv3 != nil {
+			renderL2TPv3(ifc, b)
+		}
+		return nil
+	}
 	var w ini
 	w.section("NetDev")
 	w.kv("Name", ifc.Name)
@@ -271,7 +277,7 @@ func renderNetdev(c *config.Config, ifc *config.Interface, b Bundle) error {
 			}
 		}
 	default:
-		return nil // ethernet and pppoe have no netdev
+		return nil // ethernet and ppp interfaces have no netdev
 	}
 	b.add(netdevPath(ifc.Name), CompNetwork, 0o644, w.String())
 	return nil
@@ -286,42 +292,3 @@ func yesNo(v bool) string {
 
 // PPPoEUnit is the systemd template instance running pppd for an interface.
 func PPPoEUnit(name string) string { return "mahan-pppoe@" + name + ".service" }
-
-func renderPPP(c *config.Config, b Bundle) {
-	var secrets strings.Builder
-	secrets.WriteString("# " + Header + "\n# client\tserver\tsecret\tIP addresses\n")
-	any := false
-	for _, ifc := range c.Interfaces {
-		if ifc.Type != config.IfPPPoE || ifc.PPPoE == nil {
-			continue
-		}
-		any = true
-		p := ifc.PPPoE
-		var w strings.Builder
-		fmt.Fprintf(&w, "# %s\nplugin pppoe.so\nnic-%s\nifname %s\nuser %s\n", Header, ifc.Parent, ifc.Name, quote(p.Username))
-		if p.ServiceName != "" {
-			fmt.Fprintf(&w, "rp_pppoe_service %s\n", quote(p.ServiceName))
-		}
-		w.WriteString("noauth\nhide-password\nnoipdefault\npersist\nmaxfail 0\nholdoff 5\nlcp-echo-interval 20\nlcp-echo-failure 3\nnoaccomp\ndefault-asyncmap\n")
-		if p.AddDefaultRoute {
-			w.WriteString("defaultroute\nreplacedefaultroute\n")
-		}
-		if p.UsePeerDNS {
-			w.WriteString("usepeerdns\n")
-		}
-		mtu := ifc.MTU
-		if mtu == 0 {
-			mtu = 1492
-		}
-		fmt.Fprintf(&w, "mtu %d\nmru %d\n", mtu, mtu)
-		if ifc.Disabled {
-			w.WriteString("# interface disabled: unit is stopped\n")
-		}
-		b.add(path.Join(PPPPeersDir, "mr-"+ifc.Name), CompPPP, 0o640, w.String())
-		fmt.Fprintf(&secrets, "%s\t*\t%s\t*\n", quote(p.Username), quote(p.Password))
-	}
-	if any {
-		b.add("/etc/ppp/chap-secrets", CompPPP, 0o600, secrets.String())
-		b.add("/etc/ppp/pap-secrets", CompPPP, 0o600, secrets.String())
-	}
-}

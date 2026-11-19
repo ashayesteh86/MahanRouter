@@ -148,7 +148,7 @@ func (v *validator) policyRoutes(names map[string]*Interface) {
 		switch {
 		case !ok:
 			v.add("%s: interface %q does not exist", p, r.Interface)
-		case ifc.Type == IfBridge || ifc.Type == IfLoopback || ifc.Type == IfRozanehServer:
+		case ifc.Type == IfBridge || ifc.Type == IfLoopback || ifc.Type == IfRozanehServer || ifc.Type == "ppp_server":
 			v.add("%s: %s interface %q cannot carry policy routes", p, ifc.Type, r.Interface)
 		}
 		if used[r.Interface] {

@@ -25,6 +25,11 @@ config, Git history with commit-confirm, and a Persian/English web panel.
   - Rozaneh: our own anti-DPI VPN, client and server.
   - V2Ray via sing-box: VLESS/Reality, VMess, Trojan, Shadowsocks and
     Hysteria2 client; VLESS-Reality or Shadowsocks-2022 server.
+  - SSTP, L2TP/IPsec and PPTP: clients (like MikroTik's sstp-client and
+    l2tp-client) and one server for all three with shared users
+    (accel-ppp), for Windows, Mac, iPhone and other routers.
+  - L2TPv3: static layer-2 tunnels between routers (like EoIP), with an IP
+    or as a bridge member.
 - **Policy routing:** send all LAN traffic, chosen devices, or everything
   except Iranian addresses through a tunnel, optionally with DNS through the
   tunnel and a kill switch.
@@ -42,8 +47,9 @@ config, Git history with commit-confirm, and a Persian/English web panel.
 | ![Rozaneh](docs/images/vpn-rozaneh.png) | ![Changes](docs/images/changes.png) |
 
 > **Status:** early (0.3.0). The ISO is tested on VMware and in QEMU (BIOS and
-> UEFI), not yet on physical hardware. There is no IPsec/OpenVPN, no per-IP
-> queues and no A/B update yet. [docs/STATUS.md](docs/STATUS.md) lists what
+> UEFI), not yet on physical hardware. IPsec is only there for L2TP (no
+> IKEv2 or site-to-site IPsec), there is no OpenVPN, no per-IP queues and no
+> A/B update yet. [docs/STATUS.md](docs/STATUS.md) lists what
 > is built and what is still missing. The design is in
 > [docs/ARCHITECTURE.fa.md](docs/ARCHITECTURE.fa.md) (Persian).
 
@@ -98,7 +104,8 @@ config, Git history with commit-confirm, and a Persian/English web panel.
 | `web/` | web panel source (React + TypeScript) |
 | `examples/` | `factory-default.yaml`, `branch-office.yaml` |
 | `tests/lab/` | network-namespace end-to-end test |
-| `packaging/systemd/` | `mahan-agent.service`, `mahan-pppoe@.service`, Rozaneh and V2Ray units |
+| `packaging/systemd/` | `mahan-agent.service`, `mahan-pppoe@.service`, Rozaneh, V2Ray and PPP units |
+| `packaging/accel-ppp/` | builds accel-ppp (PPTP/L2TP/SSTP server) for Debian 12 in a container |
 | `image/` | ISO build (`build-iso.sh`), QEMU test (`test-vm.sh`), files baked into the image (`overlay/`) |
 
 ## Build and test
@@ -259,6 +266,40 @@ with `sing-box check` before apply, when the binary is installed.
 - DNS via the tunnel uses its own mark and table (0x20000+i, table 2000+i),
   which has no kill-switch route. DNS keeps working while a tunnel is down,
   so the tunnel program can resolve its server and reconnect.
+
+## VPN: SSTP, L2TP, PPTP and L2TPv3
+
+- **Clients** (`type: sstp | l2tp | pptp`, section `ppp`):
+  - pppd dials the server: `pptp` for PPTP, `sstpc` for SSTP (unit
+    `mahan-ppp@<name>`), xl2tpd for L2TP. With `ipsec_secret`, strongSwan
+    (swanctl, IKEv1, transport mode) protects the L2TP traffic.
+  - The tunnel never takes the router's default route; LAN traffic goes
+    through it with the same `policy_routes` as Rozaneh and V2Ray.
+  - SSTP does not check the server certificate unless `verify_cert` is set,
+    because most SSTP servers use self-signed ones.
+  - PPTP needs GRE back from the server. Without the PPTP conntrack helper
+    the replies look new, so an input rule accepts GRE while a PPTP client
+    exists.
+- **Server** (top-level `ppp_server`, unit `mahan-ppp-server`):
+  - [accel-ppp](https://github.com/accel-ppp/accel-ppp) runs PPTP, L2TP and
+    SSTP with one set of users and one address pool. It is not packaged for
+    Debian, so `make accel-ppp` builds the pinned release in a `debian:12`
+    container.
+  - Sessions are interfaces `ppps0`, `ppps1`, … The name `ppps` works in
+    interface lists and firewall rules as a wildcard for all of them.
+  - Without `allow_lan`, built-in rules keep clients on the internet only.
+    With an IPsec secret, L2TP outside IPsec is dropped.
+  - SSTP listens on 8445; the panel redirects the public port (443) to it.
+    `POST /api/v1/ppp/sstp-cert` makes a self-signed certificate that
+    Windows can import as a trusted root.
+- **L2TPv3** (`type: l2tpv3`): a static tunnel and session as a networkd
+  `.netdev`. The interface can have addresses or be a bridge member. It is
+  not encrypted.
+- **Ports:** PPTP TCP 1723 + GRE; L2TP UDP 1701, with IPsec also UDP 500,
+  4500 and ESP; SSTP TCP 443 (8445 inside); L2TPv3 UDP 1701 or IP 115. When
+  the L2TP server holds UDP 1701, the L2TP client uses 1702.
+- nftables rules and swanctl selectors use protocol numbers (GRE 47, ESP 50,
+  UDP 17), so they do not depend on `/etc/protocols`.
 
 ## CLI
 

@@ -32,7 +32,9 @@ cp /etc/issue /etc/issue.net
 
 # mahan-agent decides which services run; start from a known state.
 systemctl enable systemd-networkd mahan-agent nftables open-vm-tools ssh
-systemctl disable kea-dhcp4-server unbound frr 2>/dev/null || true
+for u in kea-dhcp4-server unbound frr xl2tpd strongswan strongswan-starter; do
+  systemctl disable "$u" 2>/dev/null || true
+done
 systemctl mask systemd-networkd-wait-online.service
 systemctl enable mahan-selftest mahan-installer mahan-timesync-bootstrap
 systemctl set-default multi-user.target
