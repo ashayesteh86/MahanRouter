@@ -95,6 +95,9 @@ type Interface struct {
 	PPP    *PPPClient `yaml:"ppp,omitempty" json:"ppp,omitempty"`
 	L2TPv3 *L2TPv3    `yaml:"l2tpv3,omitempty" json:"l2tpv3,omitempty"`
 
+	// GRE / IPIP / EoIP / 6to4 / EoIPv6 / GRE6 tunnel transport.
+	Tunnel *Tunnel `yaml:"tunnel,omitempty" json:"tunnel,omitempty"`
+
 	// Layer 3
 	Addressing string   `yaml:"addressing,omitempty" json:"addressing,omitempty"`
 	Addresses  []string `yaml:"addresses,omitempty" json:"addresses,omitempty"`

@@ -115,9 +115,14 @@ func nftIfName(n string) string {
 //     helper the replies do not match the outgoing call and look new.
 //   - An L2TP server with an IPsec secret takes L2TP only inside IPsec.
 //   - PPP server clients without LAN access stay on the internet only.
+//   - GRE / IPIP / EoIP / 6to4 / EoIPv6 / GRE6 tunnels take their packets
+//     from the configured remote. EoIP needs this before the "drop
+//     invalid" rule: conntrack only understands GRE version 1 as PPTP and
+//     marks every EoIP packet invalid.
 func builtinRules(c *config.Config, chain string) []string {
 	var out []string
 	if chain == "input" {
+		out = append(out, tunnelAccepts(c)...)
 		for _, ifc := range c.Interfaces {
 			if ifc.Type == config.IfPPTP && !ifc.Disabled {
 				out = append(out, fmt.Sprintf("meta l4proto 47 counter accept comment %s", quote("pptp client GRE")))
@@ -148,6 +153,38 @@ func builtinRules(c *config.Config, chain string) []string {
 			q[i] = quote(nftIfName(m))
 		}
 		out = append(out, fmt.Sprintf("iifname %s oifname != { %s } counter drop comment %s", ppp, strings.Join(q, ", "), only))
+	}
+	return out
+}
+
+// tunnelProto is the IP protocol each tunnel type arrives as.
+var tunnelProto = map[string]int{
+	config.IfGRE: 47, config.IfEoIP: 47, config.IfGRE6: 47,
+	config.IfIPIP: 4, config.If6to4: 41, config.IfEoIPv6: 97,
+}
+
+func tunnelAccepts(c *config.Config) []string {
+	var out []string
+	seen := map[string]bool{}
+	for _, ifc := range c.Interfaces {
+		if !config.IsIPTunnel(ifc.Type) || ifc.Tunnel == nil || ifc.Disabled {
+			continue
+		}
+		fam := "ip"
+		if config.TunnelIPv6(ifc.Type) {
+			fam = "ip6"
+		}
+		var r string
+		if ifc.Tunnel.Remote == "" { // 6to4 relay: from anywhere
+			r = fmt.Sprintf("meta nfproto ipv4 meta l4proto %d counter accept comment %s", tunnelProto[ifc.Type], quote(ifc.Type+" tunnels"))
+		} else {
+			r = fmt.Sprintf("%s saddr %s meta l4proto %d counter accept comment %s", fam, ifc.Tunnel.Remote, tunnelProto[ifc.Type], quote(ifc.Type+" tunnel "+ifc.Name))
+		}
+		key := r[:strings.Index(r, " counter")]
+		if !seen[key] {
+			seen[key] = true
+			out = append(out, r)
+		}
 	}
 	return out
 }

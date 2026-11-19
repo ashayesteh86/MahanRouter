@@ -245,7 +245,7 @@ func componentOf(p string) string {
 	switch {
 	case strings.HasPrefix(p, render.NetworkDir), strings.HasPrefix(p, render.SecretsDir):
 		return render.CompNetwork
-	case strings.HasPrefix(p, render.RozanehDir), strings.HasPrefix(p, render.V2RayDir):
+	case strings.HasPrefix(p, render.RozanehDir), strings.HasPrefix(p, render.V2RayDir), strings.HasPrefix(p, render.EoIPDir):
 		return render.CompVPN
 	case strings.HasPrefix(p, "/etc/ppp"), strings.HasPrefix(p, "/etc/xl2tpd"):
 		return render.CompPPP
@@ -416,6 +416,8 @@ func (a *Applier) reloadVPN(c *config.Config, touched map[string]bool) error {
 			unit, prefix = render.RozanehUnit(ifc), render.RozanehDir+"/"+ifc.Name+"."
 		case config.IfV2Ray:
 			unit, prefix = render.V2RayClientUnit(ifc.Name), render.V2RayDir+"/"+ifc.Name+"."
+		case config.IfEoIP, config.IfEoIPv6:
+			unit, prefix = render.EoIPUnit(ifc.Name), render.EoIPDir+"/"+ifc.Name+"."
 		default:
 			continue
 		}
@@ -451,6 +453,8 @@ func (a *Applier) reloadVPN(c *config.Config, touched map[string]bool) error {
 			units = []string{render.RozanehClientUnit(name), render.RozanehServerUnit(name)}
 		case strings.HasPrefix(p, render.V2RayDir+"/"):
 			units = []string{render.V2RayClientUnit(name)}
+		case strings.HasPrefix(p, render.EoIPDir+"/"):
+			units = []string{render.EoIPUnit(name)}
 		}
 		for _, unit := range units {
 			if !want[unit] {

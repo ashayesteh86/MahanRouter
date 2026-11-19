@@ -45,7 +45,7 @@ echo ">> bootstrapping Debian 12 (this takes a few minutes)"
 mmdebstrap --variant=minbase --components=main,contrib,non-free-firmware \
   --include="$(IFS=,; echo "${PACKAGES[*]}")" \
   --customize-hook="cp -a '$ROOT/image/overlay/.' \"\$1/\"" \
-  --customize-hook="install -m755 '$ROOT/bin/mahan-agent' '$ROOT/bin/mrctl' '$ROOT/bin/sing-box' \"\$1/usr/sbin/\"" \
+  --customize-hook="install -m755 '$ROOT/bin/mahan-agent' '$ROOT/bin/mrctl' '$ROOT/bin/mahan-eoip' '$ROOT/bin/sing-box' \"\$1/usr/sbin/\"" \
   "${ROZANEH_HOOK[@]}" \
   --customize-hook="tar -xzf '$ACCEL' -C \"\$1/\" --exclude=./etc --exclude=./usr/lib/systemd --exclude=./var" \
   --customize-hook="install -m644 '$ROOT/packaging/systemd/'*.service \"\$1/etc/systemd/system/\"" \

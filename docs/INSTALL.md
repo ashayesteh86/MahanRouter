@@ -241,10 +241,11 @@ Interface lists work like RouterOS: firewall and NAT rules use **WAN** and
 
 ## 11. VPN
 
-The **VPN** page has five tabs. WireGuard, Rozaneh, V2Ray and SSTP / L2TP /
+The **VPN** page has six tabs. WireGuard, Rozaneh, V2Ray and SSTP / L2TP /
 PPTP can each work as a server (phones and laptops connect to the router) and
 as a client (the router connects to a server elsewhere and routes your LAN
-through it). L2TPv3 connects two routers at layer 2.
+through it). L2TPv3 connects two routers at layer 2, and the last tab holds
+GRE, IPIP, EoIP, 6to4, EoIPv6 and GREv6 tunnels.
 
 > **If your router is behind another router or a modem,** forward the VPN
 > port from that device to the router's WAN address. Without it, server mode
@@ -373,6 +374,36 @@ or IPsec.
 2. Give the tunnel an IP address (e.g. `172.30.0.1/30`), or make it a member
    of a bridge so both sites share one LAN. With a shared LAN, keep only one
    DHCP server.
+
+### GRE, IPIP, EoIP, 6to4, EoIPv6, GREv6
+
+![GRE / IPIP / EoIP](images/vpn-tunnels.png)
+
+Point-to-point tunnels to another router, as in MikroTik's
+`/interface gre | ipip | eoip | 6to4 | eoipv6 | gre6`. None of them is
+encrypted, and most modems and NATs do not pass them, so both routers need a
+public IP (or run the tunnel inside WireGuard).
+
+| Type | Carries | Over |
+|---|---|---|
+| GRE | IP (layer 3) | IPv4 |
+| IPIP | IPv4 | IPv4 |
+| 6to4 | IPv6 | IPv4 (e.g. a Hurricane Electric tunnel broker) |
+| GREv6 | IP (layer 3) | IPv6 (needs this router's IPv6 address) |
+| EoIP | Ethernet (layer 2), works with MikroTik EoIP | IPv4 |
+| EoIPv6 | Ethernet (layer 2), works with MikroTik EoIPv6 | IPv6 |
+
+1. **New tunnel** → type, the other router's IP and, for EoIP, the tunnel ID
+   (the same on both ends). GRE can have a key, which must match.
+2. Give the tunnel an IP address (e.g. `172.31.0.1/30`, the other side
+   `172.31.0.2/30`). An EoIP tunnel can instead join a bridge, so both
+   sites share one LAN.
+3. The router accepts the tunnel's packets from the other side's IP by
+   itself; you do not need a firewall rule. The dialog shows the matching
+   MikroTik command.
+4. EoIP keepalive is 10 seconds by default, like MikroTik: the tunnel shows
+   "no reply from the other end" when the other side is silent. If the other
+   side sends no keepalives (for example a Linux box), set it to 0.
 
 ### Choosing what goes through a tunnel
 

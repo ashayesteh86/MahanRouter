@@ -30,6 +30,8 @@ config, Git history with commit-confirm, and a Persian/English web panel.
     (accel-ppp), for Windows, Mac, iPhone and other routers.
   - L2TPv3: static layer-2 tunnels between routers (like EoIP), with an IP
     or as a bridge member.
+  - GRE, IPIP, 6to4 and GREv6 tunnels, and MikroTik-compatible EoIP and
+    EoIPv6 (layer 2, bridge member possible).
 - **Policy routing:** send all LAN traffic, chosen devices, or everything
   except Iranian addresses through a tunnel, optionally with DNS through the
   tunnel and a kill switch.
@@ -300,6 +302,27 @@ with `sing-box check` before apply, when the binary is installed.
   the L2TP server holds UDP 1701, the L2TP client uses 1702.
 - nftables rules and swanctl selectors use protocol numbers (GRE 47, ESP 50,
   UDP 17), so they do not depend on `/etc/protocols`.
+
+## Tunnels: GRE, IPIP, EoIP, 6to4, EoIPv6, GREv6
+
+- Types `gre`, `ipip`, `6to4`, `gre6`, `eoip` and `eoipv6`, each with a
+  `tunnel` section (`local`, `remote`, `key` for GRE, `tunnel_id` and
+  `keepalive` for EoIP, `ttl`). None is encrypted.
+- GRE, IPIP, 6to4 (SIT) and GREv6 (ip6gre) are kernel tunnels, written as
+  networkd `.netdev` files with `Independent=yes`. GREv6 needs `local`: the
+  kernel does not send ip6gre packets without a source address. 6to4 may
+  leave `remote` empty for a 2002::/16 relay.
+- EoIP and EoIPv6 are MikroTik protocols the kernel does not have.
+  `mahan-eoip` (unit `mahan-eoip@<name>`) creates a TAP interface and
+  carries its frames over a raw socket: EoIP is GRE version 1 with protocol
+  0x6400 and the tunnel ID little-endian in the key field; EoIPv6 is IPv6
+  protocol 97 with a 12-bit tunnel ID. The formats follow the public
+  [bbonev/eoip](https://github.com/bbonev/eoip) notes. Keepalive (default
+  10 s, like RouterOS) takes the link down after 10 silent intervals.
+  Full 1500-byte frames are fragmented on the outer IP.
+- The firewall accepts each tunnel's protocol (GRE 47, IPIP 4, SIT 41,
+  EtherIP 97) from its remote address before the user's rules. EoIP needs
+  this: conntrack reads GRE version 1 only as PPTP and marks EoIP invalid.
 
 ## CLI
 

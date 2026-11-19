@@ -29,11 +29,14 @@ type RozanehPeerState struct {
 
 // RozanehState is the live state of one Rozaneh interface.
 type RozanehState struct {
-	Name      string             `json:"name"`
-	Type      string             `json:"type"`
-	Unit      string             `json:"unit"`
-	Active    string             `json:"active"` // systemd ActiveState
-	Up        bool               `json:"up"`     // tunnel interface exists
+	Name   string `json:"name"`
+	Type   string `json:"type"`
+	Unit   string `json:"unit"`
+	Active string `json:"active"` // systemd ActiveState
+	Up     bool   `json:"up"`     // tunnel interface exists
+	// Oper is the kernel operstate (up, down, lowerlayerdown, unknown):
+	// an EoIP tunnel is "down" while keepalives from the other end miss.
+	Oper      string             `json:"oper,omitempty"`
 	Addresses []string           `json:"addresses"`
 	RxBytes   uint64             `json:"rx_bytes"`
 	TxBytes   uint64             `json:"tx_bytes"`
@@ -104,6 +107,8 @@ func tunnelState(ctx context.Context, name, typ, unit string) RozanehState {
 		st.RxBytes, _ = strconv.ParseUint(strings.TrimSpace(string(b)), 10, 64)
 		b, _ = os.ReadFile(filepath.Join(sys, "tx_bytes"))
 		st.TxBytes, _ = strconv.ParseUint(strings.TrimSpace(string(b)), 10, 64)
+		b, _ = os.ReadFile(filepath.Join("/sys/class/net", name, "operstate"))
+		st.Oper = strings.TrimSpace(string(b))
 	}
 	if b, err := exec.CommandContext(ctx, "ip", "-j", "addr", "show", "dev", name).Output(); name != "" && err == nil {
 		var a []AddrJSON

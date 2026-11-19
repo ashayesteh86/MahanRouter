@@ -62,6 +62,7 @@ func Validate(c *Config) error {
 	v.policyRoutes(names)
 	v.v2rayServer()
 	v.pppChecks()
+	v.tunnelChecks()
 	servers := 0
 	for _, ifc := range c.Interfaces {
 		if ifc.Type == IfRozanehServer {
@@ -79,8 +80,12 @@ func Validate(c *Config) error {
 
 // isTunnel reports interface types created by a userspace VPN program.
 func isTunnel(t string) bool {
-	return t == IfRozaneh || t == IfRozanehServer || t == IfV2Ray || IsPPPClient(t)
+	return t == IfRozaneh || t == IfRozanehServer || t == IfV2Ray || IsPPPClient(t) || isL3IPTunnel(t)
 }
+
+// isL3IPTunnel: GRE, IPIP, 6to4 and GRE6 carry IP, not Ethernet (EoIP
+// does, so it can be a bridge member or carry VLANs).
+func isL3IPTunnel(t string) bool { return IsIPTunnel(t) && !IsEoIP(t) }
 
 func (v *validator) system() {
 	if v.c.Version != SchemaVersion {
@@ -197,6 +202,8 @@ func (v *validator) interfaces() map[string]*Interface {
 			v.pppClient(p, ifc)
 		case IfL2TPv3:
 			v.l2tpv3(p, ifc)
+		case IfGRE, IfIPIP, IfEoIP, If6to4, IfEoIPv6, IfGRE6:
+			v.ipTunnel(p, ifc)
 		default:
 			v.add("%s: unknown type %q", p, ifc.Type)
 		}

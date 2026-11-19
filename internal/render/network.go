@@ -214,6 +214,12 @@ func renderNetdev(c *config.Config, ifc *config.Interface, b Bundle) error {
 		}
 		return nil
 	}
+	if config.IsIPTunnel(ifc.Type) {
+		if ifc.Tunnel != nil {
+			renderIPTunnel(ifc, b)
+		}
+		return nil
+	}
 	var w ini
 	w.section("NetDev")
 	w.kv("Name", ifc.Name)

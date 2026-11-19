@@ -51,7 +51,9 @@ func (s *Server) pppStatus(w http.ResponseWriter, r *http.Request) {
 				case config.IfL2TP:
 					st := tunnelState(r.Context(), ifc.Name, ifc.Type, render.XL2TPDUnit)
 					out = append(out, st)
-				case config.IfL2TPv3:
+				case config.IfEoIP, config.IfEoIPv6:
+					out = append(out, tunnelState(r.Context(), ifc.Name, ifc.Type, render.EoIPUnit(ifc.Name)))
+				case config.IfL2TPv3, config.IfGRE, config.IfIPIP, config.If6to4, config.IfGRE6:
 					st := tunnelState(r.Context(), ifc.Name, ifc.Type, "")
 					st.Active = map[bool]string{true: "active", false: "inactive"}[st.Up]
 					out = append(out, st)

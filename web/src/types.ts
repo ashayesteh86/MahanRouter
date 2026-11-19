@@ -24,6 +24,11 @@ export interface PPPServer {
   users?: PPPUser[];
 }
 export interface PPPClient { server: string; username: string; password: string; ipsec_secret?: string; verify_cert?: boolean }
+export type TunnelType = "gre" | "ipip" | "eoip" | "6to4" | "eoipv6" | "gre6";
+export interface Tunnel {
+  local?: string; remote?: string; tunnel_id?: number; key?: number; ttl?: number; keepalive?: number; mac?: string;
+}
+
 export interface L2TPv3 {
   local?: string; remote: string; encapsulation?: "udp" | "ip"; port?: number;
   tunnel_id: number; peer_tunnel_id: number; session_id: number; peer_session_id: number;
@@ -50,7 +55,7 @@ export interface RozanehServer {
 
 export interface Iface {
   name: string;
-  type: "ethernet" | "vlan" | "bridge" | "bond" | "pppoe" | "wireguard" | "loopback" | "rozaneh" | "rozaneh_server" | "v2ray" | "pptp" | "l2tp" | "sstp" | "l2tpv3";
+  type: "ethernet" | "vlan" | "bridge" | "bond" | "pppoe" | "wireguard" | "loopback" | "rozaneh" | "rozaneh_server" | "v2ray" | "pptp" | "l2tp" | "sstp" | "l2tpv3" | TunnelType;
   comment?: string;
   disabled?: boolean;
   mtu?: number;
@@ -67,6 +72,7 @@ export interface Iface {
   v2ray?: { link: string };
   ppp?: PPPClient;
   l2tpv3?: L2TPv3;
+  tunnel?: Tunnel;
   wireguard?: { private_key: string; listen_port?: number; client_endpoint?: string; client_dns?: string; peers?: WGPeer[] };
   addressing?: "static" | "dhcp" | "none";
   addresses?: string[];

@@ -9,7 +9,7 @@ import { ClientResult, Info, keygen, nextFree, parseCidr } from "./Vpn";
 // policy routing for the LAN) and as a Rozaneh server for phones/laptops.
 
 interface PeerLive { name: string; public_key: string; ip: string; down_bytes: number; up_bytes: number; last_seen?: string; sessions: number }
-export interface RzLive { name: string; type: string; unit: string; active: string; up: boolean; addresses: string[]; rx_bytes: number; tx_bytes: number; log: string[]; peers?: PeerLive[] }
+export interface RzLive { name: string; type: string; unit: string; active: string; up: boolean; oper?: string; addresses: string[]; rx_bytes: number; tx_bytes: number; log: string[]; peers?: PeerLive[] }
 interface Lease { address: string; mac: string; hostname: string }
 
 const fwComment = (name: string) => `Rozaneh ${name}`;
