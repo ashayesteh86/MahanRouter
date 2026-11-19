@@ -46,7 +46,7 @@ config, Git history with commit-confirm, and a Persian/English web panel.
 | ![WireGuard](docs/images/vpn-wireguard.png) | ![V2Ray](docs/images/vpn-v2ray.png) |
 | ![Rozaneh](docs/images/vpn-rozaneh.png) | ![Changes](docs/images/changes.png) |
 
-> **Status:** early (0.3.0). The ISO is tested on VMware and in QEMU (BIOS and
+> **Status:** early (0.4.0). The ISO is tested on VMware and in QEMU (BIOS and
 > UEFI), not yet on physical hardware. IPsec is only there for L2TP (no
 > IKEv2 or site-to-site IPsec), there is no OpenVPN, no per-IP queues and no
 > A/B update yet. [docs/STATUS.md](docs/STATUS.md) lists what

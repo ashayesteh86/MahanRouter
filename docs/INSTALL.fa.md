@@ -23,7 +23,7 @@
 **دانلود:** فایل `mahan-router-<version>-amd64.iso` را از [صفحه‌ی Releases](https://github.com/ashayesteh86/MahanRouter/releases/latest) بگیرید و با فایل `.sha256` کنارش بررسی کنید:
 
 ```bash
-sha256sum -c mahan-router-0.3.0-amd64.iso.sha256
+sha256sum -c mahan-router-0.4.0-amd64.iso.sha256
 ```
 
 **یا خودتان بسازید** روی Debian 12 یا Ubuntu 22.04 به بعد:
@@ -83,7 +83,7 @@ sudo image/test-vm.sh all
 ISO را روی فلش بنویسید:
 
 ```bash
-sudo dd if=mahan-router-0.3.0-amd64.iso of=/dev/sdX bs=4M status=progress oflag=sync
+sudo dd if=mahan-router-0.4.0-amd64.iso of=/dev/sdX bs=4M status=progress oflag=sync
 ```
 
 از فلش بوت کنید. پورت‌ها به ترتیب PCI شماره می‌خورند؛ معمولاً پورت روی مادربرد `ether1` می‌شود.
