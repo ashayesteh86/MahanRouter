@@ -62,6 +62,9 @@ if [ -z "$DISK" ]; then
       [ -z "$(systemctl list-jobs --no-legend 2>/dev/null | grep -v mahan-installer)" ] && break
       sleep 1
     done
+    # Stop systemd status lines ("Started …", timers later on) from being
+    # printed over the questions.
+    kill -s RTMIN+21 1 2>/dev/null || true
     printf '\033c'   # reset + clear the console
   fi
   echo

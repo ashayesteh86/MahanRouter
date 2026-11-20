@@ -63,6 +63,7 @@ cat > "$ISO/boot/grub/grub.cfg" <<EOF
 set timeout=5
 set default=0
 insmod all_video
+set gfxpayload=keep
 serial --speed=115200
 terminal_input console serial
 terminal_output console serial
