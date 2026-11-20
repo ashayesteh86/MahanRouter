@@ -30,6 +30,8 @@ config, Git history with commit-confirm, and a Persian/English web panel.
     (accel-ppp), for Windows, Mac, iPhone and other routers.
   - OpenVPN: clients (a `.ovpn` file, or server address and certificate
     like MikroTik's ovpn-client) and a server that logs in the same users.
+  - SSH tunnel: LAN traffic through any server you can log in to with
+    SSH (password or key), with no VPN software on the server. TCP only.
   - L2TPv3: static layer-2 tunnels between routers (like EoIP), with an IP
     or as a bridge member.
   - GRE, IPIP, 6to4 and GREv6 tunnels, and MikroTik-compatible EoIP and
@@ -50,11 +52,12 @@ config, Git history with commit-confirm, and a Persian/English web panel.
 | ![WireGuard](docs/images/vpn-wireguard.png) | ![V2Ray](docs/images/vpn-v2ray.png) |
 | ![Rozaneh](docs/images/vpn-rozaneh.png) | ![OpenVPN](docs/images/vpn-openvpn.png) |
 | ![SSTP / L2TP / PPTP](docs/images/vpn-ppp.png) | ![GRE / IPIP / EoIP](docs/images/vpn-tunnels.png) |
-| ![DHCP](docs/images/dhcp.png) | ![Changes](docs/images/changes.png) |
+| ![SSH tunnel](docs/images/vpn-ssh.png) | ![DHCP](docs/images/dhcp.png) |
+| ![Changes](docs/images/changes.png) | |
 
 > **Status:** early (0.4.0). The ISO is tested on VMware and in QEMU (BIOS and
 > UEFI), not yet on physical hardware. IPsec is only there for L2TP (no
-> IKEv2 or site-to-site IPsec), there is no OpenVPN, no per-IP queues and no
+> IKEv2 or site-to-site IPsec), there are no per-IP queues and no
 > A/B update yet. [docs/STATUS.md](docs/STATUS.md) lists what
 > is built and what is still missing. The design is in
 > [docs/ARCHITECTURE.fa.md](docs/ARCHITECTURE.fa.md) (Persian).
@@ -327,6 +330,26 @@ with `sing-box check` before apply, when the binary is installed.
 - The firewall accepts each tunnel's protocol (GRE 47, IPIP 4, SIT 41,
   EtherIP 97) from its remote address before the user's rules. EoIP needs
   this: conntrack reads GRE version 1 only as PPTP and marks EoIP invalid.
+
+## SSH tunnel
+
+- Interface type `ssh` with an `ssh` section: `server`, `port` (22),
+  `username`, `password` and/or `private_key` (OpenSSH or PEM, with
+  `passphrase`), and optional `host_keys` (`"ssh-ed25519 AAAA..."` lines).
+- sing-box runs it, like the V2Ray client: a TUN interface with an SSH
+  outbound, so policy routing decides what goes through the tunnel. Each
+  connection becomes a `direct-tcpip` channel on the server, which needs
+  `AllowTcpForwarding` (OpenSSH's default) and nothing else.
+- SSH carries TCP only. DNS queries routed into the tunnel are answered
+  over TCP through it; every other UDP packet is refused at once, so apps
+  fall back to TCP (browsers leave QUIC). Voice and video calls and other
+  UDP-only traffic do not pass.
+- With `host_keys` the router asks the server only for those key types and
+  refuses any other key. Without them any host key is accepted.
+- The panel makes an Ed25519 key (`POST /api/v1/ssh/keypair`, ssh-keygen)
+  and reads a server's host keys to pin (`POST /api/v1/ssh/hostkey`,
+  ssh-keyscan). The unit is `mahan-v2ray-client@<interface>`, the file
+  `/etc/mahan-router/v2ray/<interface>.json`.
 
 ## OpenVPN
 

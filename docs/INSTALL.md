@@ -241,10 +241,11 @@ Interface lists work like RouterOS: firewall and NAT rules use **WAN** and
 
 ## 11. VPN
 
-The **VPN** page has seven tabs. WireGuard, Rozaneh, V2Ray, SSTP / L2TP /
+The **VPN** page has eight tabs. WireGuard, Rozaneh, V2Ray, SSTP / L2TP /
 PPTP and OpenVPN can each work as a server (phones and laptops connect to the router) and
 as a client (the router connects to a server elsewhere and routes your LAN
-through it). L2TPv3 connects two routers at layer 2, and the last tab holds
+through it). SSH is a client only: it uses any server you can log in to with
+SSH. L2TPv3 connects two routers at layer 2, and the last tab holds
 GRE, IPIP, EoIP, 6to4, EoIPv6 and GREv6 tunnels.
 
 > **If your router is behind another router or a modem,** forward the VPN
@@ -411,6 +412,34 @@ are refused, and TAP (ethernet) mode is not supported: use EoIP for layer 2.
 A MikroTik connects with the `ovpn-client` command shown under
 **How to connect devices**. On RouterOS 6 use TCP.
 
+### SSH tunnel
+
+![SSH tunnel](images/vpn-ssh.png)
+
+The router logs in to a Linux server with SSH and sends your LAN's traffic
+through it. The server needs no VPN software: a cheap VPS with SSH is enough.
+
+1. **VPN → SSH → New connection**. Enter the server address, port and user
+   name.
+2. Sign in with the **password**, or choose **SSH key**: paste your private
+   key, or press **Make a new key** and add the public key the panel shows
+   to `~/.ssh/authorized_keys` of that user on the server.
+3. Press **Read from the server** under *Server host key*. The router then
+   connects only to a server with that key. Do this on a network you trust,
+   because the key is read over the same path as the tunnel.
+4. Choose what goes through the tunnel (see below), then **Create** and
+   apply.
+
+Limits:
+
+- SSH carries **TCP only**. Web, mail and most apps work, and DNS is
+  answered through the tunnel. Voice and video calls, some games and other
+  UDP traffic do not pass; use WireGuard, Rozaneh or V2Ray for those.
+- The server must allow TCP forwarding (`AllowTcpForwarding yes` in
+  `sshd_config`; this is OpenSSH's default, but some hosts turn it off).
+- The card shows "up" when the tunnel program runs. The SSH login happens
+  on the first connection; a wrong password or host key shows in **Show log**.
+
 ### GRE, IPIP, EoIP, 6to4, EoIPv6, GREv6
 
 ![GRE / IPIP / EoIP](images/vpn-tunnels.png)
@@ -443,7 +472,7 @@ public IP (or run the tunnel inside WireGuard).
 
 ### Choosing what goes through a tunnel
 
-For Rozaneh, V2Ray, SSTP, L2TP, PPTP and OpenVPN client tunnels, you choose:
+For Rozaneh, V2Ray, SSTP, L2TP, PPTP, OpenVPN and SSH client tunnels, you choose:
 
 | Option | Meaning |
 |---|---|
