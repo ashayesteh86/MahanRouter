@@ -245,7 +245,7 @@ func componentOf(p string) string {
 	switch {
 	case strings.HasPrefix(p, render.NetworkDir), strings.HasPrefix(p, render.SecretsDir):
 		return render.CompNetwork
-	case strings.HasPrefix(p, render.RozanehDir), strings.HasPrefix(p, render.V2RayDir), strings.HasPrefix(p, render.EoIPDir):
+	case strings.HasPrefix(p, render.RozanehDir), strings.HasPrefix(p, render.V2RayDir), strings.HasPrefix(p, render.EoIPDir), strings.HasPrefix(p, render.OpenVPNDir):
 		return render.CompVPN
 	case strings.HasPrefix(p, "/etc/ppp"), strings.HasPrefix(p, "/etc/xl2tpd"):
 		return render.CompPPP
@@ -418,6 +418,8 @@ func (a *Applier) reloadVPN(c *config.Config, touched map[string]bool) error {
 			unit, prefix = render.V2RayClientUnit(ifc.Name), render.V2RayDir+"/"+ifc.Name+"."
 		case config.IfEoIP, config.IfEoIPv6:
 			unit, prefix = render.EoIPUnit(ifc.Name), render.EoIPDir+"/"+ifc.Name+"."
+		case config.IfOpenVPN:
+			unit, prefix = render.OpenVPNUnit(ifc.Name), render.OpenVPNDir+"/"+ifc.Name+"."
 		default:
 			continue
 		}
@@ -441,8 +443,23 @@ func (a *Applier) reloadVPN(c *config.Config, touched map[string]bool) error {
 		errs = append(errs, a.svc(srv, render.V2RayServerUnit))
 	}
 	want[render.V2RayServerUnit] = srv
+	ovpn := render.OpenVPNUnit(config.OpenVPNServerIf)
+	ovpnOn := c.PPPServer.OpenVPNOn()
+	for p := range touched {
+		if strings.HasPrefix(p, render.OpenVPNDir+"/"+config.OpenVPNServerIf+".") {
+			errs = append(errs, a.svc(ovpnOn, ovpn))
+			break
+		}
+	}
+	want[ovpn] = ovpnOn
 	// Units of interfaces that no longer exist (or changed type).
 	for p := range touched {
+		if strings.HasPrefix(p, render.OpenVPNDir+"/") && strings.HasSuffix(p, ".conf") {
+			if unit := render.OpenVPNUnit(strings.TrimSuffix(filepath.Base(p), ".conf")); !want[unit] {
+				_ = a.svc(false, unit)
+			}
+			continue
+		}
 		if !strings.HasSuffix(p, ".json") || p == render.V2RayServerConf {
 			continue
 		}

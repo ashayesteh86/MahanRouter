@@ -21,7 +21,16 @@ export interface PPPServer {
   disabled?: boolean; address: string; client_dns?: string[]; mtu?: number; allow_lan?: boolean;
   pptp?: { enabled: boolean }; l2tp?: { enabled: boolean; ipsec_secret?: string };
   sstp?: { enabled: boolean; public_port?: number; listen_port?: number; domain?: string; cert_pem: string; key_pem: string };
+  openvpn?: OpenVPNServer;
   users?: PPPUser[];
+}
+export interface OpenVPNServer {
+  enabled: boolean; port?: number; protocol?: "tcp" | "udp"; address?: string; domain?: string; cert_pem: string; key_pem: string;
+  cipher?: string; auth?: string; split_tunnel?: boolean;
+}
+export interface OpenVPNClient {
+  config?: string; server?: string; port?: number; protocol?: "tcp" | "udp"; ca_pem?: string; fingerprint?: string;
+  cert_pem?: string; key_pem?: string; cipher?: string; auth?: string; username?: string; password?: string;
 }
 export interface PPPClient { server: string; username: string; password: string; ipsec_secret?: string; verify_cert?: boolean }
 export type TunnelType = "gre" | "ipip" | "eoip" | "6to4" | "eoipv6" | "gre6";
@@ -55,7 +64,7 @@ export interface RozanehServer {
 
 export interface Iface {
   name: string;
-  type: "ethernet" | "vlan" | "bridge" | "bond" | "pppoe" | "wireguard" | "loopback" | "rozaneh" | "rozaneh_server" | "v2ray" | "pptp" | "l2tp" | "sstp" | "l2tpv3" | TunnelType;
+  type: "ethernet" | "vlan" | "bridge" | "bond" | "pppoe" | "wireguard" | "loopback" | "rozaneh" | "rozaneh_server" | "v2ray" | "pptp" | "l2tp" | "sstp" | "l2tpv3" | "openvpn" | TunnelType;
   comment?: string;
   disabled?: boolean;
   mtu?: number;
@@ -72,6 +81,7 @@ export interface Iface {
   v2ray?: { link: string };
   ppp?: PPPClient;
   l2tpv3?: L2TPv3;
+  openvpn?: OpenVPNClient;
   tunnel?: Tunnel;
   wireguard?: { private_key: string; listen_port?: number; client_endpoint?: string; client_dns?: string; peers?: WGPeer[] };
   addressing?: "static" | "dhcp" | "none";

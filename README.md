@@ -28,6 +28,8 @@ config, Git history with commit-confirm, and a Persian/English web panel.
   - SSTP, L2TP/IPsec and PPTP: clients (like MikroTik's sstp-client and
     l2tp-client) and one server for all three with shared users
     (accel-ppp), for Windows, Mac, iPhone and other routers.
+  - OpenVPN: clients (a `.ovpn` file, or server address and certificate
+    like MikroTik's ovpn-client) and a server that logs in the same users.
   - L2TPv3: static layer-2 tunnels between routers (like EoIP), with an IP
     or as a bridge member.
   - GRE, IPIP, 6to4 and GREv6 tunnels, and MikroTik-compatible EoIP and
@@ -323,6 +325,30 @@ with `sing-box check` before apply, when the binary is installed.
 - The firewall accepts each tunnel's protocol (GRE 47, IPIP 4, SIT 41,
   EtherIP 97) from its remote address before the user's rules. EoIP needs
   this: conntrack reads GRE version 1 only as PPTP and marks EoIP invalid.
+
+## OpenVPN
+
+- Client: interface type `openvpn` with an `openvpn` section. Either
+  `config` (a whole `.ovpn` file) or `server`, `port`, `protocol`
+  (`tcp`/`udp`), `ca_pem` or `fingerprint` (SHA-256 of the server
+  certificate), optional `cert_pem`/`key_pem`, `cipher`, `auth`; plus
+  `username`/`password`. Routed (tun) mode only.
+- From an imported `.ovpn` the router refuses options that run programs or
+  open a management port (`up`, `down`, `plugin`, `management`, ...) and
+  TAP mode, and replaces device, logging and routing options. Pushed
+  routes and `redirect-gateway` are ignored: policy routing decides what
+  goes through the tunnel, as for the other client tunnels.
+- Server: `ppp_server.openvpn` (`port` 1194, `protocol` tcp, `address`
+  10.81.0.1/24, `cert_pem`/`key_pem`, `cipher`, `auth`, `split_tunnel`). It
+  logs in the PPP server's users (openvpn calls `mrctl ovpn-auth`), has its
+  own subnet, and its interface `ppps-ovpn` is covered by the `ppps`
+  pseudo interface, so `allow_lan` and the "internet only" rules apply.
+  A user's fixed `ip` is only for SSTP/L2TP/PPTP.
+- New clients negotiate AES-GCM; `cipher` (default AES-256-CBC) and `auth`
+  (default SHA1) are for clients without negotiation, like RouterOS 6.
+- One unit template runs both: `mahan-openvpn@<interface>`; files are in
+  `/etc/mahan-router/openvpn`. Connected clients come from the server's
+  status file; "Disconnect" goes through its management socket.
 
 ## CLI
 

@@ -241,8 +241,8 @@ Interface lists work like RouterOS: firewall and NAT rules use **WAN** and
 
 ## 11. VPN
 
-The **VPN** page has six tabs. WireGuard, Rozaneh, V2Ray and SSTP / L2TP /
-PPTP can each work as a server (phones and laptops connect to the router) and
+The **VPN** page has seven tabs. WireGuard, Rozaneh, V2Ray, SSTP / L2TP /
+PPTP and OpenVPN can each work as a server (phones and laptops connect to the router) and
 as a client (the router connects to a server elsewhere and routes your LAN
 through it). L2TPv3 connects two routers at layer 2, and the last tab holds
 GRE, IPIP, EoIP, 6to4, EoIPv6 and GREv6 tunnels.
@@ -375,6 +375,42 @@ or IPsec.
    of a bridge so both sites share one LAN. With a shared LAN, keep only one
    DHCP server.
 
+### OpenVPN
+
+![OpenVPN](images/vpn-openvpn.png)
+
+**Connect the router to an OpenVPN server** (like MikroTik's `ovpn-client`):
+
+1. **New connection**, then one of two ways:
+   - **Import a .ovpn file** from your provider or server admin. The
+     certificates must be inside the file. Add the user name and password
+     if the server asks for them.
+   - **Server address and certificate**: address, port, TCP or UDP, and
+     either the server's CA certificate or the SHA-256 fingerprint of its
+     certificate (MikroTik: `/certificate print detail`). Then a user name
+     and password, or a client certificate.
+2. Choose what goes through the tunnel (see below). The router ignores a
+   default route the server sends; your choice here decides.
+
+Options in a `.ovpn` file that run programs (`up`, `down`, `plugin`, ...)
+are refused, and TAP (ethernet) mode is not supported: use EoIP for layer 2.
+
+**OpenVPN server on the router:**
+
+1. **Set up the server** → port (1194), TCP or UDP, and the address clients
+   dial. A self-signed certificate is made for you.
+2. Add users with **New user**. They are the same users as on the SSTP /
+   L2TP / PPTP tab.
+3. Download **Users' .ovpn file** and import it in OpenVPN Connect (Windows,
+   Android, iPhone, Mac) or OpenVPN GUI. Each person enters their own user
+   name and password. One file serves all users.
+4. By default all of the client's internet goes through the router. Turn on
+   **split tunnel** to send only LAN traffic (this needs "Clients may reach
+   the LAN").
+
+A MikroTik connects with the `ovpn-client` command shown under
+**How to connect devices**. On RouterOS 6 use TCP.
+
 ### GRE, IPIP, EoIP, 6to4, EoIPv6, GREv6
 
 ![GRE / IPIP / EoIP](images/vpn-tunnels.png)
@@ -407,7 +443,7 @@ public IP (or run the tunnel inside WireGuard).
 
 ### Choosing what goes through a tunnel
 
-For Rozaneh, V2Ray, SSTP, L2TP and PPTP client tunnels, you choose:
+For Rozaneh, V2Ray, SSTP, L2TP, PPTP and OpenVPN client tunnels, you choose:
 
 | Option | Meaning |
 |---|---|

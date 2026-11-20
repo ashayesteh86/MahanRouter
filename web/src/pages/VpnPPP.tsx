@@ -12,15 +12,15 @@ import type { Routing, RzLive } from "./VpnRozaneh";
 
 type Proto = "sstp" | "l2tp" | "pptp";
 const LABEL: Record<Proto, string> = { sstp: "SSTP", l2tp: "L2TP/IPsec", pptp: "PPTP" };
-const FW = "PPP server";
-const SESS = "ppps";
+export const FW = "PPP server";
+export const SESS = "ppps";
 
-interface Session { ifname: string; username: string; ip: string; type: string; state: string; uptime: number; from: string; rx_bytes: number; tx_bytes: number }
-interface Live { interfaces: RzLive[]; server: (RzLive & { sessions: Session[] }) | null }
+export interface Session { ifname: string; username: string; ip: string; type: string; state: string; uptime: number; from: string; rx_bytes: number; tx_bytes: number }
+export interface Live { interfaces: RzLive[]; server: (RzLive & { sessions: Session[] }) | null }
 
-const hostRe = /^(([a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,63}|\d{1,3}(\.\d{1,3}){3})$/;
-const safe = (s: string) => s.length > 0 && s.length <= 128 && !/["\\\x00-\x1f\x7f]/.test(s);
-const randPass = (n = 12) => Array.from(crypto.getRandomValues(new Uint8Array(n)), (b) => "abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789"[b % 56]).join("");
+export const hostRe = /^(([a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,63}|\d{1,3}(\.\d{1,3}){3})$/;
+export const safe = (s: string) => s.length > 0 && s.length <= 128 && !/["\\\x00-\x1f\x7f]/.test(s);
+export const randPass = (n = 12) => Array.from(crypto.getRandomValues(new Uint8Array(n)), (b) => "abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789"[b % 56]).join("");
 const serverOK = (proto: Proto, s: string) => {
   const m = proto === "sstp" ? /^(.+?)(?::(\d{1,5}))?$/.exec(s) : [s, s];
   return !!m && hostRe.test(m[1]) && (!m[2] || (+m[2] > 0 && +m[2] < 65536));
@@ -168,7 +168,7 @@ function ClientCard({ ifc, live }: { ifc: Iface; live?: RzLive }) {
 const sstpPorts = (s: PPPServer) => ({ pub: s.sstp?.public_port || 443, listen: s.sstp?.listen_port || 8445 });
 
 /** Opens the enabled protocols from WAN. */
-function setServerFw(c: Config, s: PPPServer) {
+export function setServerFw(c: Config, s: PPPServer) {
   clearServerFw(c);
   c.firewall = c.firewall || {};
   const filter = (c.firewall.filter = c.firewall.filter || []);
@@ -184,18 +184,19 @@ function setServerFw(c: Config, s: PPPServer) {
     rules.push(acc("tcp", String(listen)));
     if (pub !== listen) (c.firewall.nat = c.firewall.nat || []).unshift({ chain: "dstnat", action: "redirect", protocol: "tcp", dst_port: String(pub), in_interface_list: "WAN", to_port: String(listen), comment: FW });
   }
+  if (s.openvpn?.enabled) rules.push(acc(s.openvpn.protocol || "tcp", String(s.openvpn.port || 1194)));
   let pos = filter.findIndex((r) => r.chain === "input" && (r.action === "drop" || r.action === "reject") && !r.connection_state);
   if (pos < 0) pos = filter.length;
   filter.splice(pos, 0, ...rules);
 }
 
-function clearServerFw(c: Config) {
+export function clearServerFw(c: Config) {
   if (c.firewall?.filter) c.firewall.filter = c.firewall.filter.filter((r) => r.comment !== FW);
   if (c.firewall?.nat) c.firewall.nat = c.firewall.nat.filter((r) => r.comment !== FW);
 }
 
 /** Sessions count as LAN (router + LAN reachable) only with allow_lan. */
-function setLanAccess(c: Config, allow: boolean) {
+export function setLanAccess(c: Config, allow: boolean) {
   c.interface_lists = c.interface_lists || {};
   const L = (c.interface_lists.LAN || []).filter((x) => x !== SESS);
   c.interface_lists.LAN = allow ? [...L, SESS] : L;
@@ -224,7 +225,7 @@ function ServerDialog({ s, onClose }: { s?: PPPServer; onClose: () => void }) {
   const [busy, setBusy] = useState(false);
   const name = host.trim() || wanIP;
   const cidr = parseCidr(addr);
-  const valid = (sstp || l2tp || pptp) && !!cidr && cidr.len >= 16 && cidr.len <= 29 && (!l2tp || !psk || safe(psk)) && port > 0 && port < 65536
+  const valid = (sstp || l2tp || pptp || !!s?.openvpn) && !!cidr && cidr.len >= 16 && cidr.len <= 29 && (!l2tp || !psk || safe(psk)) && port > 0 && port < 65536
     && (!sstp || (own ? certPem.includes("BEGIN CERTIFICATE") && keyPem.includes("PRIVATE KEY") : hostRe.test(name) || !!s?.sstp?.cert_pem));
   const save = async () => {
     setBusy(true);
@@ -286,7 +287,7 @@ function ServerDialog({ s, onClose }: { s?: PPPServer; onClose: () => void }) {
           {s && <Check label={t("موقتاً غیرفعال", "Temporarily disabled")} checked={disabled} onChange={setDisabled} />}
           <div className="rounded-md bg-surface-2 p-3 text-xs leading-6 text-ink-2">
             {t("پورت‌ها: ", "Ports: ")}
-            {[sstp && `SSTP TCP ${port}`, l2tp && (psk ? "L2TP/IPsec UDP 500, 4500, 1701 + ESP" : "L2TP UDP 1701"), pptp && "PPTP TCP 1723 + GRE"].filter(Boolean).join(" · ") || "—"}.
+            {[sstp && `SSTP TCP ${port}`, l2tp && (psk ? "L2TP/IPsec UDP 500, 4500, 1701 + ESP" : "L2TP UDP 1701"), pptp && "PPTP TCP 1723 + GRE", s?.openvpn?.enabled && `OpenVPN ${(s.openvpn.protocol || "tcp").toUpperCase()} ${s.openvpn.port || 1194}`].filter(Boolean).join(" · ") || "—"}.
             {t(" اگر روتر پشت مودم است، این پورت‌ها را روی مودم به این روتر فوروارد کنید (GRE و ESP روی بیشتر مودم‌ها فوروارد نمی‌شوند؛ آنجا SSTP بهتر است).", " If this router is behind a modem, forward these ports to it there (most modems cannot forward GRE and ESP; SSTP is better then).")}
           </div>
         </div>
@@ -319,7 +320,7 @@ function ServerCard({ s, live }: { s: PPPServer; live?: RzLive & { sessions: Ses
     : !live?.active || live.active === "inactive" ? <Chip tone="off">{t("اعمال نشده", "not applied")}</Chip>
     : live.active === "active" ? <Chip tone="idle">{t("فعال", "running")}</Chip>
     : live.active === "failed" ? <Chip tone="talk">{t("خطا", "failed")}</Chip> : <Chip tone="ring">{live.active}</Chip>;
-  const protos = [s.sstp?.enabled && "SSTP", s.l2tp?.enabled && (s.l2tp.ipsec_secret ? "L2TP/IPsec" : "L2TP"), s.pptp?.enabled && "PPTP"].filter(Boolean) as string[];
+  const protos = [s.sstp?.enabled && "SSTP", s.l2tp?.enabled && (s.l2tp.ipsec_secret ? "L2TP/IPsec" : "L2TP"), s.pptp?.enabled && "PPTP", s.openvpn?.enabled && "OpenVPN"].filter(Boolean) as string[];
   const kick = (ifname: string) => api("/api/v1/ppp/disconnect", { method: "POST", body: { ifname } }).then(() => toast(t("قطع شد", "Disconnected"))).catch((e) => toast(e.message));
   return (
     <div className="card overflow-hidden">
@@ -331,7 +332,7 @@ function ServerCard({ s, live }: { s: PPPServer; live?: RzLive & { sessions: Ses
           <button className="btn btn-primary btn-sm" onClick={() => setUser("new")}><Icon name="plus" className="size-4" />{t("کاربر جدید", "New user")}</button>
           {s.sstp?.enabled && <button className="btn btn-sm" onClick={() => downloadCert(s)}><Icon name="file" className="size-4" />{t("گواهی SSTP", "SSTP certificate")}</button>}
           <button className="icon-btn" title={t("تنظیمات", "Settings")} onClick={() => setSettings(true)}><Icon name="settings" className="size-4" /></button>
-          <ConfirmButton className="icon-btn text-talk" question={t("سرور و همه‌ی کاربرانش حذف شود؟", "Delete the server and all its users?")} onConfirm={() => edit((c) => { c.ppp_server = undefined; clearServerFw(c); setLanAccess(c, false); }, t("حذف شد (هنوز اعمال نشده)", "Deleted (not applied yet)"))}><Icon name="trash" className="size-4" /></ConfirmButton>
+          <ConfirmButton className="icon-btn text-talk" question={s.openvpn ? t("سرور (همراه با OpenVPN) و همه‌ی کاربرانش حذف شود؟", "Delete the server (OpenVPN included) and all its users?") : t("سرور و همه‌ی کاربرانش حذف شود؟", "Delete the server and all its users?")} onConfirm={() => edit((c) => { c.ppp_server = undefined; clearServerFw(c); setLanAccess(c, false); }, t("حذف شد (هنوز اعمال نشده)", "Deleted (not applied yet)"))}><Icon name="trash" className="size-4" /></ConfirmButton>
         </div>
       </div>
       <div className="grid gap-x-6 gap-y-2 px-5 py-4 text-sm sm:grid-cols-2 xl:grid-cols-4">
@@ -413,7 +414,7 @@ function ConnectHelp({ s, host }: { s: PPPServer; host: string }) {
   );
 }
 
-function UserDialog({ s, user, onClose }: { s: PPPServer; user?: PPPUser; onClose: () => void }) {
+export function UserDialog({ s, user, onClose }: { s: PPPServer; user?: PPPUser; onClose: () => void }) {
   const { edit } = useConfig();
   const [name, setName] = useState(user?.name || "");
   const [pass, setPass] = useState(user?.password || randPass());

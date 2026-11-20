@@ -88,7 +88,9 @@ type PPPServer struct {
 	PPTP     *PPPServerPPTP `yaml:"pptp,omitempty" json:"pptp,omitempty"`
 	L2TP     *PPPServerL2TP `yaml:"l2tp,omitempty" json:"l2tp,omitempty"`
 	SSTP     *PPPServerSSTP `yaml:"sstp,omitempty" json:"sstp,omitempty"`
-	Users    []PPPUser      `yaml:"users,omitempty" json:"users,omitempty"`
+	// OpenVPN server for the same users, on its own subnet.
+	OpenVPN *PPPServerOpenVPN `yaml:"openvpn,omitempty" json:"openvpn,omitempty"`
+	Users   []PPPUser         `yaml:"users,omitempty" json:"users,omitempty"`
 }
 
 // PPPServerPPTP enables the PPTP server (TCP 1723 + GRE). PPTP's
@@ -309,8 +311,11 @@ func (v *validator) pppServer() {
 	if s.MTU != 0 && (s.MTU < 576 || s.MTU > 1500) {
 		v.add("ppp_server.mtu out of range 576-1500")
 	}
-	if s.PPTP == nil && s.L2TP == nil && s.SSTP == nil {
-		v.add("ppp_server: enable at least one of pptp, l2tp or sstp")
+	if s.PPTP == nil && s.L2TP == nil && s.SSTP == nil && s.OpenVPN == nil {
+		v.add("ppp_server: enable at least one of pptp, l2tp, sstp or openvpn")
+	}
+	if s.OpenVPN != nil {
+		v.openvpnServer(gw)
 	}
 	if s.L2TP != nil && s.L2TP.IPsecSecret != "" && !pppSafe(s.L2TP.IPsecSecret) {
 		v.add("ppp_server.l2tp.ipsec_secret may not contain quotes, backslashes or control characters")

@@ -26,7 +26,7 @@ for s in mahan-agent systemd-networkd nftables kea-dhcp4-server unbound frr chro
   printf '%-18s %s\n' "$s" "$(systemctl is-active $s)"
 done
 echo "--- vpn programs"
-for b in accel-pppd sstpc pptp xl2tpd swanctl sing-box rozaneh wg mahan-eoip; do
+for b in accel-pppd sstpc pptp xl2tpd swanctl sing-box rozaneh wg mahan-eoip openvpn; do
   printf '%-12s %s\n' "$b" "$(command -v $b >/dev/null && echo present || echo missing)"
 done
 accel-pppd -V 2>&1 | head -1

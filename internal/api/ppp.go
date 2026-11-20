@@ -1,12 +1,16 @@
 package api
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net"
 	"net/http"
+	"net/netip"
+	"os"
 	"os/exec"
 	"regexp"
 	"strconv"
@@ -35,6 +39,8 @@ type PPPSession struct {
 type PPPServerState struct {
 	RozanehState
 	Sessions []PPPSession `json:"sessions"`
+	// OpenVPN is the OpenVPN server unit, when it is configured.
+	OpenVPN *RozanehState `json:"openvpn,omitempty"`
 }
 
 func (s *Server) pppStatus(w http.ResponseWriter, r *http.Request) {
@@ -51,6 +57,8 @@ func (s *Server) pppStatus(w http.ResponseWriter, r *http.Request) {
 				case config.IfL2TP:
 					st := tunnelState(r.Context(), ifc.Name, ifc.Type, render.XL2TPDUnit)
 					out = append(out, st)
+				case config.IfOpenVPN:
+					out = append(out, tunnelState(r.Context(), ifc.Name, ifc.Type, render.OpenVPNUnit(ifc.Name)))
 				case config.IfEoIP, config.IfEoIPv6:
 					out = append(out, tunnelState(r.Context(), ifc.Name, ifc.Type, render.EoIPUnit(ifc.Name)))
 				case config.IfL2TPv3, config.IfGRE, config.IfIPIP, config.If6to4, config.IfGRE6:
@@ -63,6 +71,17 @@ func (s *Server) pppStatus(w http.ResponseWriter, r *http.Request) {
 				st := PPPServerState{RozanehState: tunnelState(r.Context(), "", "ppp_server", render.PPPServerUnit), Sessions: []PPPSession{}}
 				if st.Active == "active" {
 					st.Sessions = pppSessions(r.Context())
+				}
+				if c.PPPServer.OpenVPN != nil {
+					ov := tunnelState(r.Context(), config.OpenVPNServerIf, "openvpn_server", render.OpenVPNUnit(config.OpenVPNServerIf))
+					st.OpenVPN = &ov
+					if ov.Active == "active" {
+						st.Sessions = append(st.Sessions, openVPNSessions(render.OpenVPNStatus, time.Now())...)
+					}
+					if !c.PPPServer.Running() {
+						// Only OpenVPN: the server is as up as its unit.
+						st.Active = ov.Active
+					}
 				}
 				server = &st
 			}
@@ -123,6 +142,19 @@ func (s *Server) pppDisconnect(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, 400, err)
 		return
 	}
+	if addr, ok := strings.CutPrefix(req.Ifname, ovpnSessPrefix); ok {
+		ap, err := netip.ParseAddrPort(addr)
+		if err != nil {
+			writeErr(w, 422, errors.New("not an OpenVPN session"))
+			return
+		}
+		if err := openVPNKill(r.Context(), ap.String()); err != nil {
+			writeErr(w, 500, err)
+			return
+		}
+		writeJSON(w, 200, map[string]string{"status": "ok"})
+		return
+	}
 	if !sessIfRe.MatchString(req.Ifname) {
 		writeErr(w, 422, errors.New("not a PPP server session"))
 		return
@@ -149,4 +181,91 @@ func (s *Server) pppSSTPCert(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, 200, map[string]string{"cert_pem": cert, "key_pem": key})
+}
+
+// ovpnSessPrefix marks OpenVPN sessions; the rest is the client's
+// address:port, which the management interface kills by.
+const ovpnSessPrefix = "ovpn:"
+
+// openVPNSessions reads the server's status file (status-version 2).
+func openVPNSessions(file string, now time.Time) []PPPSession {
+	out := []PPPSession{}
+	b, err := os.ReadFile(file)
+	if err != nil {
+		return out
+	}
+	return parseOpenVPNStatus(string(b), now)
+}
+
+func parseOpenVPNStatus(s string, now time.Time) []PPPSession {
+	out := []PPPSession{}
+	col := map[string]int{}
+	for _, line := range strings.Split(s, "\n") {
+		f := strings.Split(strings.TrimRight(line, "\r"), ",")
+		switch {
+		case len(f) > 2 && f[0] == "HEADER" && f[1] == "CLIENT_LIST":
+			for i, h := range f[2:] {
+				col[h] = i + 1
+			}
+		case len(f) > 1 && f[0] == "CLIENT_LIST" && len(col) > 0:
+			get := func(h string) string {
+				if i, ok := col[h]; ok && i < len(f) {
+					return f[i]
+				}
+				return ""
+			}
+			rx, _ := strconv.ParseUint(get("Bytes Received"), 10, 64)
+			tx, _ := strconv.ParseUint(get("Bytes Sent"), 10, 64)
+			since, _ := strconv.ParseInt(get("Connected Since (time_t)"), 10, 64)
+			up := int64(0)
+			if since > 0 {
+				up = now.Unix() - since
+			}
+			user := get("Username")
+			if user == "" || user == "UNDEF" {
+				user = get("Common Name")
+			}
+			real := get("Real Address")
+			from := real
+			if ap, err := netip.ParseAddrPort(real); err == nil {
+				from = ap.Addr().Unmap().String()
+			}
+			out = append(out, PPPSession{Ifname: ovpnSessPrefix + real, Username: user, IP: get("Virtual Address"),
+				Type: "openvpn", State: "active", Uptime: up, From: from, RxBytes: rx, TxBytes: tx})
+		}
+	}
+	return out
+}
+
+// openVPNKill disconnects one client through the management socket.
+func openVPNKill(ctx context.Context, addr string) error {
+	ctx, cancel := context.WithTimeout(ctx, 4*time.Second)
+	defer cancel()
+	var d net.Dialer
+	conn, err := d.DialContext(ctx, "unix", render.OpenVPNMgmt)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+	dl, _ := ctx.Deadline()
+	_ = conn.SetDeadline(dl)
+	rd := bufio.NewReader(conn)
+	if _, err := rd.ReadString('\n'); err != nil { // >INFO banner
+		return err
+	}
+	if _, err := fmt.Fprintf(conn, "kill %s\r\n", addr); err != nil {
+		return err
+	}
+	for {
+		l, err := rd.ReadString('\n')
+		if err != nil {
+			return err
+		}
+		switch {
+		case strings.HasPrefix(l, "SUCCESS:"):
+			return nil
+		case strings.HasPrefix(l, "ERROR:"):
+			return errors.New(strings.TrimSpace(strings.TrimPrefix(l, "ERROR:")))
+		}
+	}
 }

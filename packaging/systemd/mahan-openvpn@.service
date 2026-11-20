@@ -1,0 +1,16 @@
+[Unit]
+Description=Mahan Router OpenVPN %i
+After=network-online.target systemd-networkd.service
+Wants=network-online.target
+ConditionPathExists=/etc/mahan-router/openvpn/%i.conf
+
+[Service]
+Type=notify
+RuntimeDirectory=mahan-openvpn
+RuntimeDirectoryPreserve=yes
+ExecStart=/usr/sbin/openvpn --config /etc/mahan-router/openvpn/%i.conf
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

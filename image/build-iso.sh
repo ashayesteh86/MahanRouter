@@ -21,8 +21,8 @@ PACKAGES=(
   linux-image-amd64 firmware-linux-free live-boot
   # router services
   nftables kea-dhcp4-server unbound dns-root-data chrony frr ppp wireguard-tools git
-  # PPTP / L2TP(/IPsec) / SSTP clients; accel-ppp (servers) is added below
-  pptp-linux sstp-client xl2tpd strongswan-swanctl charon-systemd libstrongswan-standard-plugins libpcre2-8-0 libssl3 netbase
+  # PPTP / L2TP(/IPsec) / SSTP / OpenVPN; accel-ppp (servers) is added below
+  pptp-linux sstp-client xl2tpd openvpn strongswan-swanctl charon-systemd libstrongswan-standard-plugins libpcre2-8-0 libssl3 netbase
   # tools
   tcpdump ethtool pciutils conntrack dnsutils mtr-tiny
   # hypervisor guest tools

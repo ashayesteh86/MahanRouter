@@ -6,6 +6,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"crypto/subtle"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -45,6 +46,7 @@ Offline commands:
   validate FILE                  validate a file
   render FILE [--out DIR]        render a file to DIR (default: print paths)
   factory-default [--sys DIR]    print the default config for this machine
+  ovpn-auth USERS CREDS          OpenVPN server password check (used by openvpn)
 `
 
 type client struct {
@@ -251,6 +253,8 @@ func run(args []string) error {
 		return printOut(c.call("GET", "/api/v1/firewall/counters", nil, ""))
 	case "render":
 		return renderFile(rest)
+	case "ovpn-auth":
+		return ovpnAuth(rest)
 	case "factory-default":
 		f := flag.NewFlagSet("factory-default", flag.ContinueOnError)
 		sys := f.String("sys", "/sys/class/net", "sysfs net directory")
@@ -387,4 +391,37 @@ func parseAll(f *flag.FlagSet, args []string) ([]string, error) {
 		pos = append(pos, f.Arg(0))
 		args = f.Args()[1:]
 	}
+}
+
+// ovpnAuth is the OpenVPN server's auth-user-pass-verify program:
+// "mrctl ovpn-auth USERS CREDS" exits 0 when the user name and password
+// in CREDS (two lines, written by openvpn) match an entry of USERS (a JSON
+// object name -> password that the agent renders from the PPP users).
+func ovpnAuth(args []string) error {
+	if len(args) != 2 {
+		return errors.New("usage: mrctl ovpn-auth USERS-FILE CREDENTIALS-FILE")
+	}
+	data, err := os.ReadFile(args[0])
+	if err != nil {
+		return err
+	}
+	users := map[string]string{}
+	if err := json.Unmarshal(data, &users); err != nil {
+		return err
+	}
+	creds, err := os.ReadFile(args[1])
+	if err != nil {
+		return err
+	}
+	lines := strings.SplitN(strings.TrimRight(string(creds), "\n"), "\n", 2)
+	if len(lines) != 2 {
+		return errors.New("bad credentials file")
+	}
+	name, pass := lines[0], strings.TrimSuffix(lines[1], "\r")
+	want, ok := users[name]
+	// Compare anyway, so a missing user takes as long as a wrong password.
+	if subtle.ConstantTimeCompare([]byte(pass), []byte(want)) != 1 || !ok || want == "" {
+		return fmt.Errorf("openvpn login refused for %q", name)
+	}
+	return nil
 }

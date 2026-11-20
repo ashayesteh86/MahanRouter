@@ -104,6 +104,9 @@ func Render(c *config.Config) (Bundle, error) {
 	if err := renderV2Ray(c, b); err != nil {
 		return nil, err
 	}
+	if err := renderOpenVPN(c, b); err != nil {
+		return nil, err
+	}
 	renderPPP(c, b)
 	renderIPsec(c, b)
 	renderPPPServer(c, b)
