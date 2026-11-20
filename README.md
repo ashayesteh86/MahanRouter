@@ -48,7 +48,9 @@ config, Git history with commit-confirm, and a Persian/English web panel.
 |---|---|
 | ![Interfaces](docs/images/interfaces.png) | ![Firewall](docs/images/firewall.png) |
 | ![WireGuard](docs/images/vpn-wireguard.png) | ![V2Ray](docs/images/vpn-v2ray.png) |
-| ![Rozaneh](docs/images/vpn-rozaneh.png) | ![Changes](docs/images/changes.png) |
+| ![Rozaneh](docs/images/vpn-rozaneh.png) | ![OpenVPN](docs/images/vpn-openvpn.png) |
+| ![SSTP / L2TP / PPTP](docs/images/vpn-ppp.png) | ![GRE / IPIP / EoIP](docs/images/vpn-tunnels.png) |
+| ![DHCP](docs/images/dhcp.png) | ![Changes](docs/images/changes.png) |
 
 > **Status:** early (0.4.0). The ISO is tested on VMware and in QEMU (BIOS and
 > UEFI), not yet on physical hardware. IPsec is only there for L2TP (no
