@@ -8,6 +8,11 @@ import { useLinks } from "./Dashboard";
 const TYPE_LABEL: Record<string, string> = {
   ethernet: t("پورت اترنت", "Ethernet"), vlan: "VLAN", bridge: t("بریج", "Bridge"), bond: t("باند (تجمیع)", "Bond"),
   pppoe: t("PPPoE کلاینت", "PPPoE client"), wireguard: "WireGuard", loopback: t("لوپ‌بک", "Loopback"),
+  // Made on the VPN page; listed here with their type.
+  rozaneh: t("روزنه (کلاینت)", "Rozaneh client"), rozaneh_server: t("روزنه (سرور)", "Rozaneh server"), v2ray: t("V2Ray کلاینت", "V2Ray client"),
+  sstp: t("SSTP کلاینت", "SSTP client"), l2tp: t("L2TP کلاینت", "L2TP client"), pptp: t("PPTP کلاینت", "PPTP client"),
+  openvpn: t("OpenVPN کلاینت", "OpenVPN client"), l2tpv3: "L2TPv3",
+  gre: "GRE", ipip: "IPIP", eoip: "EoIP", "6to4": "6to4", eoipv6: "EoIPv6", gre6: "GREv6",
 };
 const BOND_MODES = ["802.3ad", "active-backup", "balance-rr", "balance-xor", "broadcast", "balance-tlb", "balance-alb"];
 
@@ -42,7 +47,7 @@ export default function Interfaces() {
 
   return (
     <div className="space-y-5">
-      <PageHead title={t("اینترفیس‌ها", "Interfaces")} sub={t("پورت‌ها، VLAN، بریج، باند، PPPoE و WireGuard", "Ports, VLANs, bridges, bonds, PPPoE and WireGuard")}>
+      <PageHead title={t("اینترفیس‌ها", "Interfaces")} sub={t("پورت‌ها، VLAN، بریج، باند، PPPoE و تونل‌های VPN", "Ports, VLANs, bridges, bonds, PPPoE and VPN tunnels")}>
         <button className="btn btn-sm" onClick={() => setLists(true)}><Icon name="list" className="size-4" />{t("لیست‌های اینترفیس", "Interface lists")}</button>
         <AddMenu onAdd={add} />
       </PageHead>
@@ -71,7 +76,7 @@ export default function Interfaces() {
                     <div className="font-medium"><Ltr>{i.name}</Ltr></div>
                     {i.comment && <div className="text-xs text-ink-3">{i.comment}</div>}
                   </td>
-                  <td className="px-4 py-2.5 text-xs">{TYPE_LABEL[i.type]}{i.type === "vlan" && <> <Ltr>{i.vlan_id}@{i.parent}</Ltr></>}{i.mac && <div className="ltr mono text-ink-3">{i.mac}</div>}</td>
+                  <td className="px-4 py-2.5 text-xs">{TYPE_LABEL[i.type] || <Ltr>{i.type}</Ltr>}{i.type === "vlan" && <> <Ltr>{i.vlan_id}@{i.parent}</Ltr></>}{i.mac && <div className="ltr mono text-ink-3">{i.mac}</div>}</td>
                   <td className="px-4 py-2.5">
                     {i.disabled ? <Chip tone="off">{t("غیرفعال", "disabled")}</Chip> : !l ? <Chip tone="ring">{t("هنوز ساخته نشده", "not present")}</Chip> : up ? <Chip tone="idle">{t("فعال", "up")}</Chip> : <Chip tone="talk">{t("قطع", "down")}</Chip>}
                     {slave && <div className="mt-1 text-xs text-ink-3">{t("عضو", "in")} <Ltr>{slave}</Ltr></div>}
