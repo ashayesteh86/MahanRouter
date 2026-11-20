@@ -64,7 +64,7 @@ export interface RozanehServer {
 
 export interface Iface {
   name: string;
-  type: "ethernet" | "vlan" | "bridge" | "bond" | "pppoe" | "wireguard" | "loopback" | "rozaneh" | "rozaneh_server" | "v2ray" | "pptp" | "l2tp" | "sstp" | "l2tpv3" | "openvpn" | TunnelType;
+  type: "ethernet" | "vlan" | "bridge" | "bond" | "pppoe" | "wireguard" | "loopback" | "rozaneh" | "rozaneh_server" | "v2ray" | "pptp" | "l2tp" | "sstp" | "l2tpv3" | "openvpn" | "ssh" | TunnelType;
   comment?: string;
   disabled?: boolean;
   mtu?: number;
@@ -79,6 +79,7 @@ export interface Iface {
   rozaneh?: { link: string; method?: "auto" | "tunnel" | "dns" };
   rozaneh_server?: RozanehServer;
   v2ray?: { link: string };
+  ssh?: SSHClient;
   ppp?: PPPClient;
   l2tpv3?: L2TPv3;
   openvpn?: OpenVPNClient;
@@ -89,6 +90,11 @@ export interface Iface {
   dhcp_use_dns?: boolean;
   dhcp_route_distance?: number;
   shaping?: { bandwidth: string };
+}
+
+export interface SSHClient {
+  server: string; port?: number; username: string; password?: string;
+  private_key?: string; passphrase?: string; host_keys?: string[];
 }
 
 export interface WGPeer {

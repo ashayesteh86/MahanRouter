@@ -1,5 +1,5 @@
 [Unit]
-Description=Mahan Router V2Ray client %i (sing-box)
+Description=Mahan Router V2Ray or SSH tunnel client %i (sing-box)
 After=systemd-networkd.service network-online.target
 Wants=network-online.target
 ConditionPathExists=/etc/mahan-router/v2ray/%i.json

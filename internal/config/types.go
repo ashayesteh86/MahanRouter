@@ -90,6 +90,7 @@ type Interface struct {
 	Rozaneh       *RozanehClient `yaml:"rozaneh,omitempty" json:"rozaneh,omitempty"`
 	RozanehServer *RozanehServer `yaml:"rozaneh_server,omitempty" json:"rozaneh_server,omitempty"`
 	V2Ray         *V2RayClient   `yaml:"v2ray,omitempty" json:"v2ray,omitempty"`
+	SSH           *SSHClient     `yaml:"ssh,omitempty" json:"ssh,omitempty"`
 
 	// PPTP / L2TP / SSTP client and static L2TPv3 tunnel.
 	PPP    *PPPClient `yaml:"ppp,omitempty" json:"ppp,omitempty"`

@@ -414,7 +414,7 @@ func (a *Applier) reloadVPN(c *config.Config, touched map[string]bool) error {
 		switch ifc.Type {
 		case config.IfRozaneh, config.IfRozanehServer:
 			unit, prefix = render.RozanehUnit(ifc), render.RozanehDir+"/"+ifc.Name+"."
-		case config.IfV2Ray:
+		case config.IfV2Ray, config.IfSSH:
 			unit, prefix = render.V2RayClientUnit(ifc.Name), render.V2RayDir+"/"+ifc.Name+"."
 		case config.IfEoIP, config.IfEoIPv6:
 			unit, prefix = render.EoIPUnit(ifc.Name), render.EoIPDir+"/"+ifc.Name+"."

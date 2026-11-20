@@ -28,22 +28,35 @@ func V2RayClientUnit(n string) string { return "mahan-v2ray-client@" + n + ".ser
 // tunnel that is trying to connect.
 const v2rayBootstrapDNS = "1.1.1.1"
 
+// sshTunnelDNS answers DNS queries routed into an SSH tunnel, reached over
+// TCP from the SSH server's side.
+const sshTunnelDNS = "1.1.1.1"
+
 var v2rayLog = map[string]any{"level": "warn", "timestamp": true}
 
 func renderV2Ray(c *config.Config, b Bundle) error {
 	n := 0
 	for i := range c.Interfaces {
 		ifc := &c.Interfaces[i]
-		if ifc.Type != config.IfV2Ray {
+		if !config.IsSingBoxClient(ifc.Type) {
 			continue
 		}
 		n++
 		if ifc.Disabled {
 			continue
 		}
-		out, err := config.ParseV2RayLink(ifc.V2Ray.Link)
-		if err != nil {
-			return fmt.Errorf("%s: %w", ifc.Name, err)
+		var out map[string]any
+		ssh := ifc.Type == config.IfSSH
+		if ssh {
+			if ifc.SSH == nil {
+				return fmt.Errorf("%s: ssh section missing", ifc.Name)
+			}
+			out = ifc.SSH.Outbound()
+		} else {
+			var err error
+			if out, err = config.ParseV2RayLink(ifc.V2Ray.Link); err != nil {
+				return fmt.Errorf("%s: %w", ifc.Name, err)
+			}
 		}
 		mtu := ifc.MTU
 		if mtu == 0 {
@@ -60,6 +73,19 @@ func renderV2Ray(c *config.Config, b Bundle) error {
 			}},
 			"outbounds": []any{out, map[string]any{"type": "direct", "tag": "direct"}},
 			"route":     map[string]any{"final": "proxy", "default_domain_resolver": "bootstrap"},
+		}
+		if ssh {
+			// SSH forwards TCP only. DNS that is routed into the tunnel
+			// is answered over TCP through it; other UDP (QUIC, ...) is
+			// refused at once, so apps fall back to TCP.
+			conf["dns"] = map[string]any{"servers": []any{
+				map[string]any{"type": "udp", "tag": "bootstrap", "server": v2rayBootstrapDNS},
+				map[string]any{"type": "tcp", "tag": "tunnel", "server": sshTunnelDNS, "detour": "proxy"},
+			}, "final": "tunnel"}
+			conf["route"] = map[string]any{"final": "proxy", "default_domain_resolver": "bootstrap", "rules": []any{
+				map[string]any{"port": 53, "action": "hijack-dns"},
+				map[string]any{"network": "udp", "action": "reject"},
+			}}
 		}
 		data, _ := json.MarshalIndent(conf, "", "  ")
 		b.add(V2RayConfPath(ifc.Name), CompVPN, 0o600, string(data)+"\n")

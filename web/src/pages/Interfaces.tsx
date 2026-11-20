@@ -11,7 +11,7 @@ const TYPE_LABEL: Record<string, string> = {
   // Made on the VPN page; listed here with their type.
   rozaneh: t("روزنه (کلاینت)", "Rozaneh client"), rozaneh_server: t("روزنه (سرور)", "Rozaneh server"), v2ray: t("V2Ray کلاینت", "V2Ray client"),
   sstp: t("SSTP کلاینت", "SSTP client"), l2tp: t("L2TP کلاینت", "L2TP client"), pptp: t("PPTP کلاینت", "PPTP client"),
-  openvpn: t("OpenVPN کلاینت", "OpenVPN client"), l2tpv3: "L2TPv3",
+  openvpn: t("OpenVPN کلاینت", "OpenVPN client"), ssh: t("تونل SSH", "SSH tunnel"), l2tpv3: "L2TPv3",
   gre: "GRE", ipip: "IPIP", eoip: "EoIP", "6to4": "6to4", eoipv6: "EoIPv6", gre6: "GREv6",
 };
 const BOND_MODES = ["802.3ad", "active-backup", "balance-rr", "balance-xor", "broadcast", "balance-tlb", "balance-alb"];

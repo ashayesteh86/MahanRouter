@@ -11,6 +11,7 @@ import PPPTab from "./VpnPPP";
 import L2TPv3Tab from "./VpnL2TPv3";
 import TunnelsTab from "./VpnTunnels";
 import OpenVPNTab from "./VpnOpenVPN";
+import SSHTab from "./VpnSSH";
 
 // VPN page: WireGuard here, Rozaneh in VpnRozaneh.tsx, V2Ray in VpnV2Ray.tsx.
 
@@ -53,12 +54,13 @@ export default function Vpn() {
   return (
     <div className="space-y-4">
       <PageHead title="VPN" sub={t("سرور و کلاینت VPN روی روتر", "VPN servers and clients on the router")} />
-      <Tabs value={tab} onChange={setTab} tabs={[{ id: "wireguard", label: "WireGuard", icon: "lock" }, { id: "rozaneh", label: t("روزنه", "Rozaneh"), icon: "shield" }, { id: "v2ray", label: "V2Ray", icon: "globe" }, { id: "ppp", label: "SSTP / L2TP / PPTP", icon: "link" }, { id: "openvpn", label: "OpenVPN", icon: "lock" }, { id: "l2tpv3", label: "L2TPv3", icon: "link" }, { id: "tunnels", label: "GRE / IPIP / EoIP", icon: "link" }]} />
+      <Tabs value={tab} onChange={setTab} tabs={[{ id: "wireguard", label: "WireGuard", icon: "lock" }, { id: "rozaneh", label: t("روزنه", "Rozaneh"), icon: "shield" }, { id: "v2ray", label: "V2Ray", icon: "globe" }, { id: "ppp", label: "SSTP / L2TP / PPTP", icon: "link" }, { id: "openvpn", label: "OpenVPN", icon: "lock" }, { id: "ssh", label: "SSH", icon: "lock" }, { id: "l2tpv3", label: "L2TPv3", icon: "link" }, { id: "tunnels", label: "GRE / IPIP / EoIP", icon: "link" }]} />
       {tab === "wireguard" && <WireGuardTab />}
       {tab === "rozaneh" && <RozanehTab />}
       {tab === "v2ray" && <V2RayTab />}
       {tab === "ppp" && <PPPTab />}
       {tab === "openvpn" && <OpenVPNTab />}
+      {tab === "ssh" && <SSHTab />}
       {tab === "l2tpv3" && <L2TPv3Tab />}
       {tab === "tunnels" && <TunnelsTab />}
     </div>

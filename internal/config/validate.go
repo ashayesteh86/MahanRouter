@@ -80,7 +80,7 @@ func Validate(c *Config) error {
 
 // isTunnel reports interface types created by a userspace VPN program.
 func isTunnel(t string) bool {
-	return t == IfRozaneh || t == IfRozanehServer || t == IfV2Ray || IsPPPClient(t) || t == IfOpenVPN || isL3IPTunnel(t)
+	return t == IfRozaneh || t == IfRozanehServer || IsSingBoxClient(t) || IsPPPClient(t) || t == IfOpenVPN || isL3IPTunnel(t)
 }
 
 // isL3IPTunnel: GRE, IPIP, 6to4 and GRE6 carry IP, not Ethernet (EoIP
@@ -198,6 +198,8 @@ func (v *validator) interfaces() map[string]*Interface {
 			v.rozaneh(p, ifc)
 		case IfV2Ray:
 			v.v2rayClient(p, ifc)
+		case IfSSH:
+			v.sshClient(p, ifc)
 		case IfPPTP, IfL2TP, IfSSTP:
 			v.pppClient(p, ifc)
 		case IfL2TPv3:

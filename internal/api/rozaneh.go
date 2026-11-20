@@ -73,6 +73,21 @@ func rozanehState(ctx context.Context, ifc *config.Interface) RozanehState {
 	return st
 }
 
+// sshStatus lists the SSH tunnels (sing-box units, like the V2Ray clients).
+func (s *Server) sshStatus(w http.ResponseWriter, r *http.Request) {
+	out := []RozanehState{}
+	if data, err := s.Agent.Store.Running(); err == nil {
+		if c, err := config.Parse(data); err == nil {
+			for i := range c.Interfaces {
+				if ifc := &c.Interfaces[i]; ifc.Type == config.IfSSH {
+					out = append(out, tunnelState(r.Context(), ifc.Name, ifc.Type, render.V2RayClientUnit(ifc.Name)))
+				}
+			}
+		}
+	}
+	writeJSON(w, 200, map[string]any{"interfaces": out, "now": time.Now().Unix()})
+}
+
 func (s *Server) v2rayStatus(w http.ResponseWriter, r *http.Request) {
 	out := []RozanehState{}
 	var server *RozanehState
