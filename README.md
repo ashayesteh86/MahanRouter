@@ -186,6 +186,8 @@ factory default does not let the WAN reach it.
     - Rozaneh: see [VPN: Rozaneh](#vpn-rozaneh)
   - Tools: ping, traceroute and DNS lookup
   - Changes: diff, apply, history, rollback and a raw YAML editor
+  - Settings → Backup: download every setting as one file (optionally
+    encrypted with a password) and load it back as unapplied changes
   - Settings: system, NTP and panel users
 - **Security:**
   - The session cookie is HttpOnly and SameSite=Strict.

@@ -541,15 +541,24 @@ OSPF and port forwards.
 
 - The whole configuration is one YAML file, kept in a Git repository in
   `/var/lib/mahan-router`. Every apply is a commit.
-- **Backup:** copy the text from *Changes & history → Edit YAML*, or run
-  `mrctl show > backup.yaml`.
-- **Restore:** paste the YAML into *Edit YAML* and apply, or run
-  `mrctl load backup.yaml && mrctl commit --confirm 120`.
+- **Backup:** open *Settings → Backup* and press *Download backup*. The file
+  holds every active setting. Give it a password and the file is encrypted
+  (AES-256); without one it is plain YAML that you can read and edit.
+  On the console, `mrctl show > backup.yaml` gives the same plain file.
+- **Restore:** in *Settings → Backup* choose the file (and type its password
+  if it has one) and press *Load backup*. The file becomes unapplied
+  changes: look at the diff under *Changes & history* and apply it there,
+  in safe mode like any other change. On the console, run
+  `mrctl load backup.yaml && mrctl commit --confirm 120` (plain files only).
 - **Roll back:** pick any revision under *History*, or run
   `mrctl rollback <hash>`.
 
-Secrets, such as PPPoE passwords and VPN keys, are part of that file. Keep
-backups somewhere safe.
+![Backup](images/settings-backup.png)
+
+Secrets, such as PPPoE passwords and VPN keys, are part of that file. Use a
+file password, or keep plain backups somewhere safe. Panel users and the
+panel's HTTPS certificate are not in the backup. On a device whose network
+ports have other names, fix the interface names before you apply.
 
 ## 14. Upgrading
 
