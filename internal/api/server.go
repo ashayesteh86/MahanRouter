@@ -67,6 +67,8 @@ func (s *Server) Routes() *http.ServeMux {
 	mux.HandleFunc("GET /api/v1/config/candidate", s.getCandidate)
 	mux.HandleFunc("PUT /api/v1/config/candidate", s.putCandidate)
 	mux.HandleFunc("DELETE /api/v1/config/candidate", s.deleteCandidate)
+	mux.HandleFunc("POST /api/v1/backup", s.backup)
+	mux.HandleFunc("POST /api/v1/backup/restore", s.restore)
 	mux.HandleFunc("POST /api/v1/config/validate", s.validate)
 	mux.HandleFunc("GET /api/v1/config/diff", s.diff)
 	mux.HandleFunc("GET /api/v1/config/render", s.renderPreview)
