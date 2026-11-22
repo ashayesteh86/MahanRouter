@@ -1,4 +1,4 @@
-# Status (2026-11-19, version 0.4.0)
+# Status (2026-11-22, version 0.5.0)
 
 ## Built and tested
 

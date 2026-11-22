@@ -55,7 +55,7 @@ config, Git history with commit-confirm, and a Persian/English web panel.
 | ![SSH tunnel](docs/images/vpn-ssh.png) | ![DHCP](docs/images/dhcp.png) |
 | ![Changes](docs/images/changes.png) | |
 
-> **Status:** early (0.4.0). The ISO is tested on VMware and in QEMU (BIOS and
+> **Status:** early (0.5.0). The ISO is tested on VMware and in QEMU (BIOS and
 > UEFI), not yet on physical hardware. IPsec is only there for L2TP (no
 > IKEv2 or site-to-site IPsec), there are no per-IP queues and no
 > A/B update yet. [docs/STATUS.md](docs/STATUS.md) lists what
