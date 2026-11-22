@@ -245,7 +245,8 @@ The **VPN** page has nine tabs. WireGuard, Rozaneh, V2Ray, SSTP / L2TP /
 PPTP and OpenVPN can each work as a server (phones and laptops connect to the router) and
 as a client (the router connects to a server elsewhere and routes your LAN
 through it). SSH is a client only: it uses any server you can log in to with
-SSH. IPsec joins your network to another site's network (site-to-site).
+SSH. IPsec joins your network to another site's network (site-to-site)
+and holds the IKEv2 server for phones and laptops.
 L2TPv3 connects two routers at layer 2, and the last tab holds
 GRE, IPIP, EoIP, 6to4, EoIPv6 and GREv6 tunnels.
 
@@ -488,6 +489,47 @@ When the card says "connecting" for long: the key is wrong, the subnets are
 not mirrored, or the other side cannot reach UDP 500/4500 on this router
 (forward them if the router is behind another router).
 
+### IKEv2 for phones and laptops
+
+![IKEv2 server](images/vpn-ikev2.png)
+
+IKEv2 is the VPN type built into Windows, iPhone, Mac and Android, so
+nothing is installed on the device. Users sign in with a user name and
+password, the same ones as for the SSTP / L2TP / PPTP and OpenVPN servers.
+
+1. **VPN → IPsec → Set up the server** (the lower part of the tab). Enter
+   the address the devices will dial: your public domain or IP. Devices
+   must type exactly this.
+2. Leave **I have my own certificate** off and the router makes one. With a
+   certificate from a public authority (Let's Encrypt, for example) paste
+   it instead, and devices need no extra step.
+3. **Create**, add users with **New user**, and apply.
+4. With the router's own certificate, press **Certificate for devices**
+   and install that file once on every device:
+   - **Windows:** double-click → *Install Certificate* → *Local Machine* →
+     *Trusted Root Certification Authorities*.
+   - **iPhone and Mac:** open the file, install the profile, then turn on
+     full trust under *Settings → General → About → Certificate Trust
+     Settings*.
+   - **Android:** *Settings → Security → Install a certificate → CA
+     certificate*.
+5. Add the VPN on the device:
+   - **Windows:** *Settings → Network → VPN → Add*, type **IKEv2**, sign-in
+     with user name and password.
+   - **iPhone and Mac:** *Settings → VPN → Add → IKEv2*; *Server* and
+     *Remote ID* are both the address from step 1, *Local ID* stays empty.
+   - **Android:** type **IKEv2/IPSec MSCHAPv2**; server address and *IPSec
+     identifier* are both the address from step 1.
+
+The router opens UDP 500 and 4500 itself. Clients get an address from
+`10.82.0.0/24` and, unless you allow more, reach only the internet through
+the router. **Clients may reach the LAN and this router** is the same
+switch as for the other servers. The card lists who is connected and can
+disconnect a user.
+
+A new address in step 1 means a new certificate, which every device must
+install again.
+
 ### GRE, IPIP, EoIP, 6to4, EoIPv6, GREv6
 
 ![GRE / IPIP / EoIP](images/vpn-tunnels.png)
@@ -618,7 +660,9 @@ There is no A/B update yet. To move to a new version:
 
 On a router you can reach over SSH, replacing `/usr/sbin/mahan-agent` and
 `/usr/sbin/mrctl` and restarting `mahan-agent` also works between minor
-versions.
+versions. The IKEv2 server also needs two packages that
+older installs do not have:
+`apt install --no-install-recommends libcharon-extauth-plugins libcharon-extra-plugins`.
 
 ## 15. Troubleshooting
 

@@ -35,6 +35,9 @@ config, Git history with commit-confirm, and a Persian/English web panel.
   - IPsec site-to-site (IKEv1/IKEv2 with a shared key): joins the LAN to
     another site's subnets behind a MikroTik, FortiGate, Cisco or another
     Mahan Router; the firewall rules it needs are made automatically.
+  - IKEv2 server for phones and laptops (the VPN built into Windows,
+    iOS, macOS and Android): user name and password, the same users as
+    the other servers, with a certificate the router makes.
   - L2TPv3: static layer-2 tunnels between routers (like EoIP), with an IP
     or as a bridge member.
   - GRE, IPIP, 6to4 and GREv6 tunnels, and MikroTik-compatible EoIP and
@@ -360,8 +363,33 @@ with `sing-box check` before apply, when the binary is installed.
 - `GET /api/v1/ipsec/status` reads `swanctl --list-sas --raw`;
   `POST /api/v1/ipsec/restart` closes a tunnel (`--force`) and starts it
   again.
-- Not built: certificates, road-warrior clients (IKEv2 with EAP), and
-  route-based tunnels (VTI/XFRM interfaces).
+- Not built: certificate authentication between sites, and route-based
+  site-to-site tunnels.
+
+## IKEv2 server (road warriors)
+
+- `ppp_server.ikev2`: `enabled`, `domain` (what clients dial; the server's
+  IKE identity, which the certificate must name), `cert_pem`, `key_pem`,
+  `ca_pem` (handed to clients), `address` (router address and client
+  subnet, default `10.82.0.1/24`) and `split_tunnel`. Users, client DNS and
+  `allow_lan` are the PPP server's.
+- strongSwan: the server proves itself with the certificate, clients with
+  EAP-MSCHAPv2 (one `eap` secret per enabled user). Addresses come from a
+  strongSwan pool. This needs `libcharon-extauth-plugins` and
+  `libcharon-extra-plugins`; `/etc/strongswan.d/zz-mahan-router.conf`
+  turns off the other plugins those packages bring.
+- Every client SA carries XFRM interface ID 82, and the interface
+  `ppps-ike` (systemd-networkd, `Kind=xfrm`) has that ID and the router's
+  address in the client subnet. Client traffic therefore arrives on an
+  interface whose name starts with `ppps`, so the `ppps` entry of
+  interface lists and the "internet only" rules treat IKEv2 clients like
+  PPP and OpenVPN clients. Site-to-site tunnels stay policy based.
+- Built-in firewall rules: UDP 500/4500 and ESP in, and TCP MSS 1360 on
+  `ppps-ike` (its MTU is 1400).
+- `POST /api/v1/ppp/ikev2-cert` makes a certificate authority and a server
+  certificate (the authority's key is not kept). Sessions are part of
+  `GET /api/v1/ppp/status` (type `ikev2`) and are closed with
+  `POST /api/v1/ppp/disconnect`.
 
 ## SSH tunnel
 
