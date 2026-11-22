@@ -41,6 +41,8 @@ type PPPServerState struct {
 	Sessions []PPPSession `json:"sessions"`
 	// OpenVPN is the OpenVPN server unit, when it is configured.
 	OpenVPN *RozanehState `json:"openvpn,omitempty"`
+	// IKEv2 is strongSwan and the clients' interface, when IKEv2 is on.
+	IKEv2 *RozanehState `json:"ikev2,omitempty"`
 }
 
 func (s *Server) pppStatus(w http.ResponseWriter, r *http.Request) {
@@ -81,6 +83,16 @@ func (s *Server) pppStatus(w http.ResponseWriter, r *http.Request) {
 					if !c.PPPServer.Running() {
 						// Only OpenVPN: the server is as up as its unit.
 						st.Active = ov.Active
+					}
+				}
+				if c.PPPServer.IKEv2On() {
+					ik := tunnelState(r.Context(), config.IKEv2ServerIf, "ikev2_server", render.IPsecUnit)
+					st.IKEv2 = &ik
+					if ik.Active == "active" {
+						st.Sessions = append(st.Sessions, ikev2Sessions(r.Context())...)
+					}
+					if !c.PPPServer.Running() && st.OpenVPN == nil {
+						st.Active = ik.Active
 					}
 				}
 				server = &st
@@ -155,6 +167,20 @@ func (s *Server) pppDisconnect(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, 200, map[string]string{"status": "ok"})
 		return
 	}
+	if id, ok := strings.CutPrefix(req.Ifname, ikev2SessPrefix); ok {
+		if _, err := strconv.ParseUint(id, 10, 32); err != nil {
+			writeErr(w, 422, errors.New("not an IKEv2 session"))
+			return
+		}
+		ctx, cancel := context.WithTimeout(r.Context(), 8*time.Second)
+		defer cancel()
+		if err := exec.CommandContext(ctx, "swanctl", "--terminate", "--ike-id", id, "--force", "--timeout", "5").Run(); err != nil {
+			writeErr(w, 500, err)
+			return
+		}
+		writeJSON(w, 200, map[string]string{"status": "ok"})
+		return
+	}
 	if !sessIfRe.MatchString(req.Ifname) {
 		writeErr(w, 422, errors.New("not a PPP server session"))
 		return
@@ -181,6 +207,24 @@ func (s *Server) pppSSTPCert(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, 200, map[string]string{"cert_pem": cert, "key_pem": key})
+}
+
+// pppIKEv2Cert makes a certificate authority and a server certificate for
+// the IKEv2 server.
+func (s *Server) pppIKEv2Cert(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Name string `json:"name"`
+	}
+	if err := json.NewDecoder(io.LimitReader(r.Body, 4096)).Decode(&req); err != nil {
+		writeErr(w, 400, err)
+		return
+	}
+	ca, cert, key, err := pki.ServerCertWithCA(strings.TrimSpace(req.Name), 10*365*24*time.Hour)
+	if err != nil {
+		writeErr(w, 422, err)
+		return
+	}
+	writeJSON(w, 200, map[string]string{"ca_pem": ca, "cert_pem": cert, "key_pem": key})
 }
 
 // ovpnSessPrefix marks OpenVPN sessions; the rest is the client's

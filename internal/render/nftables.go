@@ -133,6 +133,7 @@ func builtinRules(c *config.Config, chain string) []string {
 		}
 	}
 	out = append(out, ipsecRules(c, chain)...)
+	out = append(out, ikev2Rules(c, chain)...)
 	s := c.PPPServer
 	if chain == "input" && s.L2TPOn() && s.L2TP.IPsecSecret != "" {
 		// With a secret set, plain L2TP (without IPsec) is refused.

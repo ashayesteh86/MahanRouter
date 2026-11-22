@@ -109,6 +109,7 @@ func Render(c *config.Config) (Bundle, error) {
 	}
 	renderPPP(c, b)
 	renderIPsec(c, b)
+	renderIKEv2Net(c, b)
 	renderPPPServer(c, b)
 	renderFRR(c, b)
 	if err := renderKea(c, b); err != nil {

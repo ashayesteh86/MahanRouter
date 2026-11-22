@@ -4,6 +4,7 @@ import { useConfig, usePoll } from "../store";
 import type { Config, IPsecTunnel } from "../types";
 import { Check, Chip, ConfirmButton, Empty, Field, Icon, ListInput, Ltr, Modal, Select, TextInput, useToast } from "../ui";
 import { Info, n2ip, parseCidr } from "./Vpn";
+import IKEv2Section from "./VpnIKEv2";
 
 // IPsec tab: site-to-site tunnels (strongSwan). A tunnel joins this
 // router's subnets to another site's subnets; there is no interface. The
@@ -62,6 +63,7 @@ export default function IPsecTab() {
         </div>
       )}
       {adding && <TunnelDialog onClose={() => setAdding(false)} />}
+      <div className="pt-3"><IKEv2Section /></div>
     </div>
   );
 }

@@ -249,7 +249,7 @@ func componentOf(p string) string {
 		return render.CompVPN
 	case strings.HasPrefix(p, "/etc/ppp"), strings.HasPrefix(p, "/etc/xl2tpd"):
 		return render.CompPPP
-	case strings.HasPrefix(p, "/etc/swanctl"):
+	case strings.HasPrefix(p, "/etc/swanctl"), p == render.StrongswanConf:
 		return render.CompIPsec
 	case strings.HasPrefix(p, render.AccelDir):
 		return render.CompPPPServer
@@ -321,6 +321,7 @@ func (a *Applier) reload(c *config.Config, comp string, netdevs []string, oldNet
 		}
 		on = on || (c.PPPServer.L2TPOn() && c.PPPServer.L2TP.IPsecSecret != "")
 		on = on || len(c.IPsecTunnels()) > 0
+		on = on || c.PPPServer.IKEv2On()
 		// A restart, not swanctl --load-all: loading leaves the SAs of
 		// removed or changed connections up, and a new connection to the
 		// same peer then reuses the stale IKE SA.

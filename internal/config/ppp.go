@@ -90,7 +90,9 @@ type PPPServer struct {
 	SSTP     *PPPServerSSTP `yaml:"sstp,omitempty" json:"sstp,omitempty"`
 	// OpenVPN server for the same users, on its own subnet.
 	OpenVPN *PPPServerOpenVPN `yaml:"openvpn,omitempty" json:"openvpn,omitempty"`
-	Users   []PPPUser         `yaml:"users,omitempty" json:"users,omitempty"`
+	// IKEv2 server (IPsec with EAP) for the same users, on its own subnet.
+	IKEv2 *PPPServerIKEv2 `yaml:"ikev2,omitempty" json:"ikev2,omitempty"`
+	Users []PPPUser       `yaml:"users,omitempty" json:"users,omitempty"`
 }
 
 // PPPServerPPTP enables the PPTP server (TCP 1723 + GRE). PPTP's
@@ -311,8 +313,11 @@ func (v *validator) pppServer() {
 	if s.MTU != 0 && (s.MTU < 576 || s.MTU > 1500) {
 		v.add("ppp_server.mtu out of range 576-1500")
 	}
-	if s.PPTP == nil && s.L2TP == nil && s.SSTP == nil && s.OpenVPN == nil {
-		v.add("ppp_server: enable at least one of pptp, l2tp, sstp or openvpn")
+	if s.PPTP == nil && s.L2TP == nil && s.SSTP == nil && s.OpenVPN == nil && s.IKEv2 == nil {
+		v.add("ppp_server: enable at least one of pptp, l2tp, sstp, openvpn or ikev2")
+	}
+	if s.IKEv2 != nil {
+		v.ikev2Server(gw)
 	}
 	if s.OpenVPN != nil {
 		v.openvpnServer(gw)

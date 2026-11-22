@@ -352,7 +352,7 @@ function ServerCard({ s, o, live }: { s: PPPServer; o: OpenVPNServer; live?: Liv
     : ov.active === "failed" ? <Chip tone="talk">{t("خطا", "failed")}</Chip> : <Chip tone="ring">{ov.active}</Chip>;
   const sessions = (live?.sessions || []).filter((x) => x.type === "openvpn");
   const kick = (ifname: string) => api("/api/v1/ppp/disconnect", { method: "POST", body: { ifname } }).then(() => toast(t("قطع شد", "Disconnected"))).catch((e) => toast(e.message));
-  const others = !!(s.sstp || s.l2tp || s.pptp);
+  const others = !!(s.sstp || s.l2tp || s.pptp || s.ikev2);
   const remove = () => edit((c) => {
     if (others) {
       c.ppp_server!.openvpn = undefined;

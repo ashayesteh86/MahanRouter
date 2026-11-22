@@ -29,8 +29,10 @@ export interface PPPServer {
   pptp?: { enabled: boolean }; l2tp?: { enabled: boolean; ipsec_secret?: string };
   sstp?: { enabled: boolean; public_port?: number; listen_port?: number; domain?: string; cert_pem: string; key_pem: string };
   openvpn?: OpenVPNServer;
+  ikev2?: IKEv2Server;
   users?: PPPUser[];
 }
+export interface IKEv2Server { enabled: boolean; address?: string; domain: string; cert_pem: string; key_pem: string; ca_pem?: string; split_tunnel?: boolean }
 export interface OpenVPNServer {
   enabled: boolean; port?: number; protocol?: "tcp" | "udp"; address?: string; domain?: string; cert_pem: string; key_pem: string;
   cipher?: string; auth?: string; split_tunnel?: boolean;

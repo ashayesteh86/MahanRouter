@@ -225,7 +225,7 @@ function ServerDialog({ s, onClose }: { s?: PPPServer; onClose: () => void }) {
   const [busy, setBusy] = useState(false);
   const name = host.trim() || wanIP;
   const cidr = parseCidr(addr);
-  const valid = (sstp || l2tp || pptp || !!s?.openvpn) && !!cidr && cidr.len >= 16 && cidr.len <= 29 && (!l2tp || !psk || safe(psk)) && port > 0 && port < 65536
+  const valid = (sstp || l2tp || pptp || !!s?.openvpn || !!s?.ikev2) && !!cidr && cidr.len >= 16 && cidr.len <= 29 && (!l2tp || !psk || safe(psk)) && port > 0 && port < 65536
     && (!sstp || (own ? certPem.includes("BEGIN CERTIFICATE") && keyPem.includes("PRIVATE KEY") : hostRe.test(name) || !!s?.sstp?.cert_pem));
   const save = async () => {
     setBusy(true);
@@ -320,7 +320,7 @@ function ServerCard({ s, live }: { s: PPPServer; live?: RzLive & { sessions: Ses
     : !live?.active || live.active === "inactive" ? <Chip tone="off">{t("اعمال نشده", "not applied")}</Chip>
     : live.active === "active" ? <Chip tone="idle">{t("فعال", "running")}</Chip>
     : live.active === "failed" ? <Chip tone="talk">{t("خطا", "failed")}</Chip> : <Chip tone="ring">{live.active}</Chip>;
-  const protos = [s.sstp?.enabled && "SSTP", s.l2tp?.enabled && (s.l2tp.ipsec_secret ? "L2TP/IPsec" : "L2TP"), s.pptp?.enabled && "PPTP", s.openvpn?.enabled && "OpenVPN"].filter(Boolean) as string[];
+  const protos = [s.sstp?.enabled && "SSTP", s.l2tp?.enabled && (s.l2tp.ipsec_secret ? "L2TP/IPsec" : "L2TP"), s.pptp?.enabled && "PPTP", s.openvpn?.enabled && "OpenVPN", s.ikev2?.enabled && "IKEv2"].filter(Boolean) as string[];
   const kick = (ifname: string) => api("/api/v1/ppp/disconnect", { method: "POST", body: { ifname } }).then(() => toast(t("قطع شد", "Disconnected"))).catch((e) => toast(e.message));
   return (
     <div className="card overflow-hidden">
@@ -332,7 +332,7 @@ function ServerCard({ s, live }: { s: PPPServer; live?: RzLive & { sessions: Ses
           <button className="btn btn-primary btn-sm" onClick={() => setUser("new")}><Icon name="plus" className="size-4" />{t("کاربر جدید", "New user")}</button>
           {s.sstp?.enabled && <button className="btn btn-sm" onClick={() => downloadCert(s)}><Icon name="file" className="size-4" />{t("گواهی SSTP", "SSTP certificate")}</button>}
           <button className="icon-btn" title={t("تنظیمات", "Settings")} onClick={() => setSettings(true)}><Icon name="settings" className="size-4" /></button>
-          <ConfirmButton className="icon-btn text-talk" question={s.openvpn ? t("سرور (همراه با OpenVPN) و همه‌ی کاربرانش حذف شود؟", "Delete the server (OpenVPN included) and all its users?") : t("سرور و همه‌ی کاربرانش حذف شود؟", "Delete the server and all its users?")} onConfirm={() => edit((c) => { c.ppp_server = undefined; clearServerFw(c); setLanAccess(c, false); }, t("حذف شد (هنوز اعمال نشده)", "Deleted (not applied yet)"))}><Icon name="trash" className="size-4" /></ConfirmButton>
+          <ConfirmButton className="icon-btn text-talk" question={s.openvpn || s.ikev2 ? t("سرور (همراه با OpenVPN و IKEv2) و همه‌ی کاربرانش حذف شود؟", "Delete the server (OpenVPN and IKEv2 included) and all its users?") : t("سرور و همه‌ی کاربرانش حذف شود؟", "Delete the server and all its users?")} onConfirm={() => edit((c) => { c.ppp_server = undefined; clearServerFw(c); setLanAccess(c, false); }, t("حذف شد (هنوز اعمال نشده)", "Deleted (not applied yet)"))}><Icon name="trash" className="size-4" /></ConfirmButton>
         </div>
       </div>
       <div className="grid gap-x-6 gap-y-2 px-5 py-4 text-sm sm:grid-cols-2 xl:grid-cols-4">

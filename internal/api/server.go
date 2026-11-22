@@ -65,6 +65,7 @@ func (s *Server) Routes() *http.ServeMux {
 	mux.HandleFunc("GET /api/v1/ppp/status", s.pppStatus)
 	mux.HandleFunc("POST /api/v1/ppp/disconnect", s.pppDisconnect)
 	mux.HandleFunc("POST /api/v1/ppp/sstp-cert", s.pppSSTPCert)
+	mux.HandleFunc("POST /api/v1/ppp/ikev2-cert", s.pppIKEv2Cert)
 	mux.HandleFunc("GET /api/v1/config/running", s.getRunning)
 	mux.HandleFunc("GET /api/v1/config/candidate", s.getCandidate)
 	mux.HandleFunc("PUT /api/v1/config/candidate", s.putCandidate)

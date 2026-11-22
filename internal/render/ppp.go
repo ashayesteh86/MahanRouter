@@ -250,10 +250,17 @@ func renderIPsec(c *config.Config, b Bundle) {
 		fmt.Fprintf(&secrets, "\tike-mr-l2tp-server {\n\t\tsecret = %s\n\t}\n", quote(serverPSK))
 	}
 	n += ipsecSiteToSite(c, &conns, &secrets)
+	var pools strings.Builder
+	n += ikev2Server(c, &conns, &pools, &secrets, b)
 	if n == 0 {
 		return
 	}
-	b.add(SwanctlConf, CompIPsec, 0o600, "# "+Header+"\nconnections {\n"+conns.String()+"}\n\nsecrets {\n"+secrets.String()+"}\n")
+	renderStrongswanConf(b)
+	body := "# " + Header + "\nconnections {\n" + conns.String() + "}\n\n"
+	if pools.Len() > 0 {
+		body += "pools {\n" + pools.String() + "}\n\n"
+	}
+	b.add(SwanctlConf, CompIPsec, 0o600, body+"secrets {\n"+secrets.String()+"}\n")
 }
 
 // renderPPPServer writes the accel-ppp config for the PPTP/L2TP/SSTP server.

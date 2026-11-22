@@ -242,3 +242,46 @@ func (s *Server) ipsecRestart(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, 200, map[string]string{"status": "ok"})
 }
+
+// ikev2SessPrefix marks IKEv2 server sessions; the rest is the IKE SA's
+// unique ID, which swanctl terminates by.
+const ikev2SessPrefix = "ikev2:"
+
+// ikev2SessionsFrom lists the IKEv2 server's clients from
+// `swanctl --list-sas --raw`.
+func ikev2SessionsFrom(raw string) []PPPSession {
+	out := []PPPSession{}
+	for _, line := range strings.Split(raw, "\n") {
+		ev := parseVici(line).Sub["event"]
+		if ev == nil {
+			continue
+		}
+		sa := ev.Sub[render.IKEv2Conn]
+		if sa == nil || sa.KV["state"] != "ESTABLISHED" {
+			continue
+		}
+		s := PPPSession{Ifname: ikev2SessPrefix + sa.KV["uniqueid"], Type: "ikev2", State: "active",
+			Username: sa.KV["remote-eap-id"], From: sa.KV["remote-host"], IP: strings.Join(sa.List["remote-vips"], ", ")}
+		if s.Username == "" {
+			s.Username = sa.KV["remote-id"]
+		}
+		s.Uptime, _ = strconv.ParseInt(sa.KV["established"], 10, 64)
+		if ch := sa.Sub["child-sas"]; ch != nil {
+			for _, k := range ch.Order {
+				in, _ := strconv.ParseUint(ch.Sub[k].KV["bytes-in"], 10, 64)
+				o, _ := strconv.ParseUint(ch.Sub[k].KV["bytes-out"], 10, 64)
+				s.RxBytes += in
+				s.TxBytes += o
+			}
+		}
+		out = append(out, s)
+	}
+	return out
+}
+
+func ikev2Sessions(ctx context.Context) []PPPSession {
+	ctx, cancel := context.WithTimeout(ctx, 4*time.Second)
+	defer cancel()
+	b, _ := exec.CommandContext(ctx, "swanctl", "--list-sas", "--raw").Output()
+	return ikev2SessionsFrom(string(b))
+}

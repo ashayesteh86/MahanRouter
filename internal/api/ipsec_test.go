@@ -29,3 +29,18 @@ list-sa event {mr-l2tp-server {uniqueid=9 state=ESTABLISHED child-sas {}}}
 		t.Fatalf("idle: %+v", st[2])
 	}
 }
+
+func TestIKEv2Sessions(t *testing.T) {
+	raw := `list-sa event {mr-ikev2 {uniqueid=7 version=2 state=ESTABLISHED local-host=198.51.100.7 remote-host=203.0.113.50 remote-port=4500 remote-id=192.168.1.20 remote-eap-id=sara established=310 remote-vips=[10.82.0.2] child-sas {mr-ikev2-3 {name=mr-ikev2 state=INSTALLED bytes-in=1000 bytes-out=5000 local-ts=[0.0.0.0/0] remote-ts=[10.82.0.2/32]}}}}
+list-sa event {mr-ikev2 {uniqueid=8 state=CONNECTING remote-host=203.0.113.51 child-sas {}}}
+list-sa event {mr-s2s-hq {uniqueid=3 state=ESTABLISHED child-sas {}}}
+`
+	s := ikev2SessionsFrom(raw)
+	if len(s) != 1 {
+		t.Fatalf("%+v", s)
+	}
+	x := s[0]
+	if x.Ifname != "ikev2:7" || x.Username != "sara" || x.IP != "10.82.0.2" || x.From != "203.0.113.50" || x.Uptime != 310 || x.RxBytes != 1000 || x.TxBytes != 5000 || x.Type != "ikev2" {
+		t.Fatalf("%+v", x)
+	}
+}
