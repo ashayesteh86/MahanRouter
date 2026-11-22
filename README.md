@@ -32,6 +32,9 @@ config, Git history with commit-confirm, and a Persian/English web panel.
     like MikroTik's ovpn-client) and a server that logs in the same users.
   - SSH tunnel: LAN traffic through any server you can log in to with
     SSH (password or key), with no VPN software on the server. TCP only.
+  - IPsec site-to-site (IKEv1/IKEv2 with a shared key): joins the LAN to
+    another site's subnets behind a MikroTik, FortiGate, Cisco or another
+    Mahan Router; the firewall rules it needs are made automatically.
   - L2TPv3: static layer-2 tunnels between routers (like EoIP), with an IP
     or as a bridge member.
   - GRE, IPIP, 6to4 and GREv6 tunnels, and MikroTik-compatible EoIP and
@@ -53,7 +56,7 @@ config, Git history with commit-confirm, and a Persian/English web panel.
 | ![Rozaneh](docs/images/vpn-rozaneh.png) | ![OpenVPN](docs/images/vpn-openvpn.png) |
 | ![SSTP / L2TP / PPTP](docs/images/vpn-ppp.png) | ![GRE / IPIP / EoIP](docs/images/vpn-tunnels.png) |
 | ![SSH tunnel](docs/images/vpn-ssh.png) | ![DHCP](docs/images/dhcp.png) |
-| ![Changes](docs/images/changes.png) | |
+| ![IPsec site-to-site](docs/images/vpn-ipsec.png) | ![Changes](docs/images/changes.png) |
 
 > **Status:** early (0.5.0). The ISO is tested on VMware and in QEMU (BIOS and
 > UEFI), not yet on physical hardware. IPsec is only there for L2TP (no
@@ -332,6 +335,33 @@ with `sing-box check` before apply, when the binary is installed.
 - The firewall accepts each tunnel's protocol (GRE 47, IPIP 4, SIT 41,
   EtherIP 97) from its remote address before the user's rules. EoIP needs
   this: conntrack reads GRE version 1 only as PPTP and marks EoIP invalid.
+
+## IPsec site-to-site
+
+- Top-level `ipsec.tunnels`: `name`, `remote` (address or DNS name; empty
+  = answer only), `psk`, `local_subnets`, `remote_subnets`, and optional
+  `ike_version` (2, or 1), `local_id`, `remote_id`, `local`, `pfs`,
+  `ike_proposals`, `esp_proposals`, `passive`, `aggressive` (IKEv1),
+  `allow_router`, `disabled`.
+- strongSwan runs it (`/etc/swanctl/conf.d/mahan.conf`, next to the
+  L2TP/IPsec connections). It is policy based: no interface. Every
+  local/remote subnet pair is its own child SA, which is what RouterOS and
+  most firewalls expect. A tunnel that starts uses `trap|start`, so its
+  policy is installed at once and no packet for the other site leaves
+  unencrypted while the tunnel is down.
+- Built-in firewall rules, before the user's: IKE (UDP 500/4500) and ESP
+  from the peer; forwarded traffic between the subnet pairs when it is
+  inside IPsec (`meta ipsec exists` in, `rt ipsec exists` out), with the
+  TCP MSS lowered to the tunnel's MTU; no NAT between the pairs; and the
+  remote subnets to the router itself only with `allow_router`.
+- The key is stored for the peer's ID and its address. IKEv1 main mode
+  finds the key by address, so an IKEv1 tunnel always names a local ID
+  (`%any` = this router's address).
+- `GET /api/v1/ipsec/status` reads `swanctl --list-sas --raw`;
+  `POST /api/v1/ipsec/restart` closes a tunnel (`--force`) and starts it
+  again.
+- Not built: certificates, road-warrior clients (IKEv2 with EAP), and
+  route-based tunnels (VTI/XFRM interfaces).
 
 ## SSH tunnel
 

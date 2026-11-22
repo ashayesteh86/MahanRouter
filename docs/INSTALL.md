@@ -241,11 +241,12 @@ Interface lists work like RouterOS: firewall and NAT rules use **WAN** and
 
 ## 11. VPN
 
-The **VPN** page has eight tabs. WireGuard, Rozaneh, V2Ray, SSTP / L2TP /
+The **VPN** page has nine tabs. WireGuard, Rozaneh, V2Ray, SSTP / L2TP /
 PPTP and OpenVPN can each work as a server (phones and laptops connect to the router) and
 as a client (the router connects to a server elsewhere and routes your LAN
 through it). SSH is a client only: it uses any server you can log in to with
-SSH. L2TPv3 connects two routers at layer 2, and the last tab holds
+SSH. IPsec joins your network to another site's network (site-to-site).
+L2TPv3 connects two routers at layer 2, and the last tab holds
 GRE, IPIP, EoIP, 6to4, EoIPv6 and GREv6 tunnels.
 
 > **If your router is behind another router or a modem,** forward the VPN
@@ -439,6 +440,53 @@ Limits:
   `sshd_config`; this is OpenSSH's default, but some hosts turn it off).
 - The card shows "up" when the tunnel program runs. The SSH login happens
   on the first connection; a wrong password or host key shows in **Show log**.
+
+### IPsec site-to-site
+
+![IPsec](images/vpn-ipsec.png)
+
+Joins the network behind this router to the network behind another router
+or firewall: a MikroTik, FortiGate, Cisco, pfSense or another Mahan Router.
+There is no tunnel interface. Packets between the two networks are
+encrypted on their way out, and everything else goes to the internet as
+before.
+
+1. **VPN → IPsec → New tunnel**. Give it a name and enter the other
+   router's public address. Leave the address empty when the other side has
+   no fixed address; this router then only answers, and the other side
+   needs a *Remote ID* (advanced settings).
+2. Type the **shared key**, or press **Make**, and set the same key on the
+   other router.
+3. **Local subnets** are the networks on this side (your LAN is filled in).
+   **Remote subnets** are the networks on the other side. The other router
+   needs the same two lists, swapped. The two sides must not use the same
+   address range.
+4. **Create** and apply.
+
+The router makes the firewall rules itself: IKE (UDP 500 and 4500) and ESP
+from the other router, traffic between the two networks, and no NAT on it.
+You do not need to add rules. Devices on the other side can reach devices
+in your local subnets; they reach the router itself (panel, DNS) only when
+you tick **The remote site may reach the router itself**.
+
+The card shows the tunnel's state and, for every pair of subnets, whether
+keys are installed and how much traffic passed. **Reconnect** closes the
+tunnel and starts it again. **IPsec log** shows what the two routers said
+to each other, which is where a wrong key or a mismatch shows up.
+
+Settings that must match the other side (advanced settings):
+
+- **IKE version.** IKEv2 unless the other device only does IKEv1.
+- **PFS.** Left alone, the router accepts either choice of the other side.
+  With IKEv1, when this router starts the tunnel, pick the same group as
+  the other side (MikroTik's default is `modp1024`).
+- **Proposals.** The built-in lists cover AES-128/256 with SHA-1/SHA-256
+  and the common DH groups, which matches most devices as they come. Fill
+  the fields only when the other side insists on something else.
+
+When the card says "connecting" for long: the key is wrong, the subnets are
+not mirrored, or the other side cannot reach UDP 500/4500 on this router
+(forward them if the router is behind another router).
 
 ### GRE, IPIP, EoIP, 6to4, EoIPv6, GREv6
 
