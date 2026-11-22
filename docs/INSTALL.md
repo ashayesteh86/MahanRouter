@@ -46,7 +46,7 @@ ARM and MIPS builds of the agent exist, but there is no image for them yet.
 next to it:
 
 ```bash
-sha256sum -c mahan-router-0.5.0-amd64.iso.sha256
+sha256sum -c mahan-router-0.6.0-amd64.iso.sha256
 ```
 
 **Or build it yourself** on a Debian 12 or Ubuntu 22.04+ machine:
@@ -113,7 +113,7 @@ network device for the LAN on its own bridge (`vmbr1`, for example).
 Write the ISO to a USB stick:
 
 ```bash
-sudo dd if=mahan-router-0.5.0-amd64.iso of=/dev/sdX bs=4M status=progress oflag=sync
+sudo dd if=mahan-router-0.6.0-amd64.iso of=/dev/sdX bs=4M status=progress oflag=sync
 ```
 
 Boot from the stick. On a PC, ports are numbered in PCI order: the on-board
