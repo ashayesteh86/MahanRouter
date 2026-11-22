@@ -320,6 +320,7 @@ func (a *Applier) reload(c *config.Config, comp string, netdevs []string, oldNet
 			on = on || (ifc.Type == config.IfL2TP && ifc.PPP != nil && ifc.PPP.IPsecSecret != "" && !ifc.Disabled)
 		}
 		on = on || (c.PPPServer.L2TPOn() && c.PPPServer.L2TP.IPsecSecret != "")
+		on = on || len(c.IPsecTunnels()) > 0
 		// A restart, not swanctl --load-all: loading leaves the SAs of
 		// removed or changed connections up, and a new connection to the
 		// same peer then reuses the stale IKE SA.

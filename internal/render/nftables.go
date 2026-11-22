@@ -113,6 +113,8 @@ func nftIfName(n string) string {
 // builtinRules come before the user's rules of a chain:
 //   - PPTP clients get their GRE packets: without the PPTP conntrack
 //     helper the replies do not match the outgoing call and look new.
+//   - Site-to-site IPsec tunnels: IKE and ESP from the peer, traffic
+//     between the two sites, and no NAT on it (ipsec.go).
 //   - An L2TP server with an IPsec secret takes L2TP only inside IPsec.
 //   - PPP server clients without LAN access stay on the internet only.
 //   - GRE / IPIP / EoIP / 6to4 / EoIPv6 / GRE6 tunnels take their packets
@@ -130,6 +132,7 @@ func builtinRules(c *config.Config, chain string) []string {
 			}
 		}
 	}
+	out = append(out, ipsecRules(c, chain)...)
 	s := c.PPPServer
 	if chain == "input" && s.L2TPOn() && s.L2TP.IPsecSecret != "" {
 		// With a secret set, plain L2TP (without IPsec) is refused.

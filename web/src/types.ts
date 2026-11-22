@@ -14,6 +14,13 @@ export interface Config {
   policy_routes?: PolicyRoute[];
   v2ray_server?: V2RayServer;
   ppp_server?: PPPServer;
+  ipsec?: { tunnels?: IPsecTunnel[] };
+}
+
+export interface IPsecTunnel {
+  name: string; comment?: string; disabled?: boolean; remote?: string; local?: string; ike_version?: 1 | 2; aggressive?: boolean;
+  psk: string; local_id?: string; remote_id?: string; local_subnets: string[]; remote_subnets: string[];
+  pfs?: string; ike_proposals?: string; esp_proposals?: string; passive?: boolean; allow_router?: boolean;
 }
 
 export interface PPPUser { name: string; password: string; ip?: string; disabled?: boolean }

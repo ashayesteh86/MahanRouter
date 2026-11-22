@@ -158,8 +158,9 @@ func pppClientOptions(ifc *config.Interface) string {
 	return w.String()
 }
 
-// renderIPsec writes the strongSwan (swanctl) connections for L2TP/IPsec:
-// one per L2TP client with a secret, and the server's when it has one.
+// renderIPsec writes the strongSwan (swanctl) connections: one per L2TP
+// client with a secret, the L2TP server's when it has one, and the
+// site-to-site tunnels (ipsec.go).
 func renderIPsec(c *config.Config, b Bundle) {
 	var conns, secrets strings.Builder
 	const ike = "aes256-sha256-modp2048,aes256-sha1-modp2048,aes128-sha256-modp2048,aes128-sha1-modp2048,aes256-sha1-modp1024,aes128-sha1-modp1024,3des-sha1-modp1024"
@@ -248,6 +249,7 @@ func renderIPsec(c *config.Config, b Bundle) {
 `, ike, esp)
 		fmt.Fprintf(&secrets, "\tike-mr-l2tp-server {\n\t\tsecret = %s\n\t}\n", quote(serverPSK))
 	}
+	n += ipsecSiteToSite(c, &conns, &secrets)
 	if n == 0 {
 		return
 	}

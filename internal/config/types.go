@@ -22,6 +22,7 @@ type Config struct {
 	PolicyRoutes   []PolicyRoute       `yaml:"policy_routes,omitempty" json:"policy_routes,omitempty"`
 	V2RayServer    *V2RayServer        `yaml:"v2ray_server,omitempty" json:"v2ray_server,omitempty"`
 	PPPServer      *PPPServer          `yaml:"ppp_server,omitempty" json:"ppp_server,omitempty"`
+	IPsec          *IPsec              `yaml:"ipsec,omitempty" json:"ipsec,omitempty"`
 	NTP            NTP                 `yaml:"ntp,omitempty" json:"ntp,omitempty"`
 }
 

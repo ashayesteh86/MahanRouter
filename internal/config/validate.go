@@ -63,6 +63,7 @@ func Validate(c *Config) error {
 	v.v2rayServer()
 	v.pppChecks()
 	v.tunnelChecks()
+	v.ipsec()
 	servers := 0
 	for _, ifc := range c.Interfaces {
 		if ifc.Type == IfRozanehServer {

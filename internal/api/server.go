@@ -60,6 +60,8 @@ func (s *Server) Routes() *http.ServeMux {
 	mux.HandleFunc("GET /api/v1/ssh/status", s.sshStatus)
 	mux.HandleFunc("POST /api/v1/ssh/keypair", s.sshKeypair)
 	mux.HandleFunc("POST /api/v1/ssh/hostkey", s.sshHostKey)
+	mux.HandleFunc("GET /api/v1/ipsec/status", s.ipsecStatus)
+	mux.HandleFunc("POST /api/v1/ipsec/restart", s.ipsecRestart)
 	mux.HandleFunc("GET /api/v1/ppp/status", s.pppStatus)
 	mux.HandleFunc("POST /api/v1/ppp/disconnect", s.pppDisconnect)
 	mux.HandleFunc("POST /api/v1/ppp/sstp-cert", s.pppSSTPCert)
